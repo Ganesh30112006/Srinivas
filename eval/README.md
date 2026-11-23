@@ -20,6 +20,7 @@ Run everything from `backend/` with its virtual environment, so that `DATABASE_U
 
 ```bash
 backend/.venv/bin/python -m pytest eval          # 38 tests: normalisation, WER, percentiles, latency pairing, reports
+(cd backend && MYPYPATH=. .venv/bin/mypy --config-file pyproject.toml ../eval)   # strict types; eval imports app.*
 ```
 
 ## 1. ASR accuracy and speed (choosing `ASR_MODEL`, D11)

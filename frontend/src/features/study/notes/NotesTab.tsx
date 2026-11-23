@@ -10,7 +10,7 @@ import { toast } from '@/components/Toast';
 import { useCurrentUser } from '@/features/auth/api';
 import { useLecture } from '@/features/lectures/api';
 import { formatDateTime } from '@/lib/time';
-import { useNotes, useNotesMutations } from '../api';
+import { artifactProblem, useNotes, useNotesMutations } from '../api';
 import { AiNote, StudyError, StudySkeleton } from '../StudyCommon';
 import styles from '../Study.module.css';
 import { NotesToc, NotesView } from './NotesView';
@@ -40,6 +40,23 @@ export function NotesTab() {
         notPublished={{ title: t('notes.notPublishedTitle'), body: t('notes.notPublishedBody') }}
         errorTitle={t('notes.errorTitle')}
         onRetry={() => void notes.refetch()}
+        extra={
+          canEdit && artifactProblem(notes.error) === 'failed' ? (
+            <Button
+              icon={RefreshCw}
+              loading={regenerate.isPending}
+              onClick={() => {
+                regenerate.mutate(undefined, {
+                  onSuccess: () => {
+                    toast.info(t('notes.regenerateStarted'));
+                  },
+                });
+              }}
+            >
+              {t('notes.regenerate')}
+            </Button>
+          ) : undefined
+        }
       />
     );
   }

@@ -133,9 +133,10 @@ Both protocols are specified in [contracts/PROTOCOL.md](contracts/PROTOCOL.md):
 
 | Part | Command | What runs |
 |---|---|---|
-| Backend | `cd backend && python -m pytest -q && ruff check . && mypy app worker tools` | 56 tests on an embedded PostgreSQL + pgvector: real WebSockets, the simulator with an outage, the ASR pipeline with a deterministic fake model, and notes with a scripted LLM |
-| Frontend | `cd frontend && npm run check && npm run build && npm run size` | Typecheck, lint, CSS token lint, format, 102 vitest tests (component tests run against MSW and a fake live socket); the initial-JS budget (≤ 200 KB gzip) |
+| Backend | `cd backend && python -m pytest -q && ruff check . && mypy app worker tools` | 73 tests on an embedded PostgreSQL + pgvector: real WebSockets, the simulator with an outage, the ASR pipeline with a deterministic fake model, and notes with a scripted LLM |
+| Frontend | `cd frontend && npm run check && npm run build && npm run size` | Typecheck, lint, CSS token lint, format, 105 vitest tests (component tests run against MSW and a fake live socket); the initial-JS budget (≤ 200 KB gzip) |
 | End-to-end | `cd frontend && npm run e2e` | 34 Playwright tests on the mock build: prepare → live, outage gap → backfill, socket drop → resume with no duplicates, search → timestamp, deep-link scrolling, quiz, export, and axe WCAG 2.1 A/AA on every route for every role. Set `PW_CHANNEL=chrome` to use an installed Chrome instead of Playwright's bundled browser |
+| Full stack | `cd frontend && npm run e2e:stack` | 3 Playwright tests against the real API, gateway, ASR worker (faster-whisper) and notes worker, with the device simulator streaming a spoken lecture through a 10 s outage. Checks the live transcript, backfill, transcript quality (no doubled words, loops or invented lines), search and the admin pages. Fails on any console error or unexpected 4xx/5xx. Setup: `frontend/e2e-stack/README.md` |
 | Eval | `backend/.venv/bin/python -m pytest eval` | 38 tests: Indic-safe normalisation, WER/CER, percentiles, latency pairing, recovery checks |
 | Firmware | `firmware/lc_core/test_host` (CMake) | Host unit tests for framing, ADPCM, ACK ranges, ring buffer, flash log, backoff |
 

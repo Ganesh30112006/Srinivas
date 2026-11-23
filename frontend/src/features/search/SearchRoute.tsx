@@ -127,7 +127,8 @@ export function SearchRoute() {
       ) : (
         <>
           <p className={styles.count} role="status">
-            {t('results', { count: results.data.total_hits, lectures })}
+            {t('resultMatches', { count: results.data.total_hits })}{' '}
+            {t('resultLectures', { count: lectures })}
           </p>
           <div className={styles.groups}>
             {results.data.groups.map((group) => (

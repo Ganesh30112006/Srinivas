@@ -93,3 +93,21 @@ def test_control_messages_match_contract_schema() -> None:
         protocol.device_message_adapter.validate_python({"type": "stop", "session_id": sid, "last_seq": -2})
     with pytest.raises(ValidationError):
         protocol.device_message_adapter.validate_python({"type": "reboot"})
+
+
+def test_shutdown_drain_does_not_wait_forever_for_a_stuck_cleanup() -> None:
+    # A cleanup awaiting a reply that never comes (seen: UNSUBSCRIBE after a cancelled read) once
+    # hung the gateway's shutdown; drain must give up after its timeout.
+    import asyncio
+    import time
+
+    from app.gateway.connection import Registry
+
+    async def scenario() -> float:
+        registry = Registry()
+        registry.spawn(asyncio.Event().wait())  # never finishes
+        started = time.monotonic()
+        await registry.drain(timeout_s=0.2)
+        return time.monotonic() - started
+
+    assert asyncio.run(scenario()) < 2.0

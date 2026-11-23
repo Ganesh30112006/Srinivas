@@ -4,13 +4,13 @@
     "showContents": "Show contents",
     "jumpToTranscript": "From {{time}} in the transcript",
     "notPublishedTitle": "Notes haven't been published yet",
-    "notPublishedBody": "Your lecturer is reviewing them. Meanwhile, the full transcript is available.",
+    "notPublishedBody": "Your lecturer is reviewing them. The transcript is available.",
     "notReadyTitle": "Notes are still being generated",
-    "notReadyBody": "This usually takes a few minutes after the lecture ends.",
+    "notReadyBody": "Usually ready a few minutes after the lecture.",
     "errorTitle": "Couldn't load the notes",
-    "pendingBanner": "Regenerating notes from the transcript… This page will update when they're ready.",
+    "pendingBanner": "Regenerating notes…",
     "failedBanner": "Notes generation failed. Try regenerating.",
-    "draftBanner": "Draft — students can't see these notes until you publish them.",
+    "draftBanner": "Draft — not visible to students yet.",
     "publishedBadge": "Published",
     "draftBadge": "Draft",
     "updated": "Updated {{date}}",
@@ -19,10 +19,10 @@
     "publishing": "Publishing…",
     "published": "Notes published. Students can now see them.",
     "publishConfirmTitle": "Publish these notes?",
-    "publishConfirmBody": "Students in this subject will be able to read them. You can still edit them afterwards.",
+    "publishConfirmBody": "Students in this subject will see them. You can still edit.",
     "regenerate": "Regenerate",
     "regenerateConfirmTitle": "Regenerate notes from the transcript?",
-    "regenerateConfirmBody": "This replaces the current notes, including your edits, with a fresh AI-generated version.",
+    "regenerateConfirmBody": "Replaces the current notes, including your edits.",
     "regenerateConfirm": "Regenerate",
     "regenerateStarted": "Regenerating notes…",
     "emptySections": "These notes have no sections yet."
@@ -32,7 +32,7 @@
     "section": "Section {{n}}",
     "heading": "Heading",
     "body": "Content (Markdown)",
-    "bodyHint": "Use **bold**, lists with -, and tables. Raw HTML is ignored.",
+    "bodyHint": "Markdown: **bold**, - lists, tables.",
     "preview": "Preview",
     "addSection": "Add section",
     "removeSection": "Remove section {{n}}",
@@ -42,7 +42,7 @@
     "saving": "Saving…",
     "saved": "Notes saved.",
     "discard": "Discard changes",
-    "conflict": "These notes were changed elsewhere. Reload to see the latest version, then reapply your edits.",
+    "conflict": "Changed elsewhere. Reload, then reapply your edits.",
     "reloadLatest": "Load latest version",
     "validation": {
       "heading": "Every section needs a heading.",
@@ -75,7 +75,7 @@
   "questions": {
     "mcqHeading": "Multiple choice",
     "shortHeading": "Short answer",
-    "intro": "Practice questions for revision. Your answers aren't saved or graded.",
+    "intro": "Practice only. Answers are not saved.",
     "questionN": "Question {{n}} of {{total}}",
     "submit": "Check answers",
     "unanswered_one": "{{count}} question not answered yet.",
@@ -97,17 +97,17 @@
     "noneTitle": "No questions for this lecture"
   },
   "ask": {
-    "intro": "Ask a question about this lecture. Answers are based only on its transcript, with links to the exact moments.",
+    "intro": "Answers come from this transcript, with links.",
     "label": "Your question",
-    "placeholder": "e.g. Why does a very small time quantum hurt performance?",
+    "placeholder": "e.g. Why does a small time quantum hurt?",
     "submit": "Ask",
     "thinking": "Searching the transcript…",
     "you": "You asked",
     "answer": "Answer",
     "sources": "From the lecture",
-    "noCitations": "This answer isn't linked to any part of the transcript. Check it against the lecture before relying on it.",
+    "noCitations": "Not linked to the transcript. Double-check it.",
     "citation": "Jump to {{time}}",
-    "empty": "No questions yet. Try asking about a topic from the lecture.",
+    "empty": "No questions yet.",
     "validation": {
       "short": "Ask a slightly longer question (at least 3 characters).",
       "long": "Keep your question under 500 characters."
@@ -119,7 +119,6 @@
     "retry": "Ask again"
   },
   "flashcards": {
-    "intro": "Test yourself: read the question, answer it in your head, then reveal the answer.",
     "position": "Card {{n}} of {{total}}",
     "cardLabel": "Flashcard",
     "reveal": "Show answer",
@@ -141,5 +140,9 @@
     "notReadyTitle": "Revision notes aren't ready yet",
     "notReadyBody": "They're generated after the lecture ends.",
     "errorTitle": "Couldn't load revision notes"
+  },
+  "generationFailed": {
+    "title": "This couldn't be generated",
+    "body": "The AI service was unavailable after the lecture. The full transcript is still available."
   }
 }

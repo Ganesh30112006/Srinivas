@@ -17,7 +17,7 @@ from app.ai.client import get_embedder, get_llm
 from app.config import get_settings
 from app.db.models import Lecture, LectureStatus
 from app.db.session import get_sessionmaker
-from app.events import NOTES_JOBS, create_redis, enqueue_notes
+from app.events import MAX_BLOCKING_READ_S, NOTES_JOBS, create_redis, enqueue_notes
 from app.logs import configure_logging, get_logger
 from worker.notes.pipeline import NotesContext, generate_lecture_material, live_key_terms
 
@@ -26,7 +26,7 @@ log = get_logger("notes")
 
 async def jobs_loop(ctx: NotesContext) -> None:
     while True:
-        item = await ctx.redis.blpop([NOTES_JOBS], timeout=5)
+        item = await ctx.redis.blpop([NOTES_JOBS], timeout=MAX_BLOCKING_READ_S)
         if item is None:
             continue
         try:

@@ -86,9 +86,7 @@ describe('LiveLectureRoute', () => {
   it('tells a student when the classroom microphone drops off Wi-Fi', async () => {
     const { send } = await openLive('arjun');
     send(frames.device(1, { online: false }));
-    expect(
-      screen.getByText(/Live captions are paused — the classroom microphone is reconnecting/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Microphone reconnecting/)).toBeInTheDocument();
   });
 
   it('shows the ended state with a link to the lecture when recording stops', async () => {
@@ -100,5 +98,15 @@ describe('LiveLectureRoute', () => {
       'href',
       `/lectures/${LIVE}/transcript`,
     );
+  });
+
+  it('stops claiming to be live as soon as the lecture completes, before the socket closes', async () => {
+    const { send } = await openLive();
+    send(frames.final(1, 's1', 0, 'Last words.'));
+    expect(screen.getByText('Live')).toBeInTheDocument();
+    send(frames.status(2, 'completed', 60_000));
+    expect(screen.getByText('Lecture ended')).toBeInTheDocument();
+    expect(screen.queryByText('Live')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Delay/)).not.toBeInTheDocument();
   });
 });

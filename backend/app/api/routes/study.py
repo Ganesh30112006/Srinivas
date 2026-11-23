@@ -52,8 +52,11 @@ async def _readable(
     db: AsyncSession, user: User, lecture: Lecture, kind: ArtifactKind, what: str
 ) -> LectureArtifact:
     artifact = await _artifact(db, lecture, kind)
-    if artifact is None or (artifact.status in ("pending", "failed") and artifact.version <= 1):
+    if artifact is None or (artifact.status == "pending" and artifact.version <= 1):
         raise ApiError(404, f"{what}_not_ready", "Not generated yet.")
+    if artifact.status == "failed" and artifact.version <= 1:
+        # Distinct from "not ready": nothing is coming until a lecturer regenerates it.
+        raise ApiError(404, f"{what}_failed", "Generation failed. A lecturer can regenerate it.")
     staff = can_edit(user, lecture) or user.role == Role.admin
     if not staff and artifact.published_at is None and artifact.status != "live":
         raise ApiError(404, f"{what}_not_published", "The lecturer has not published this yet.")

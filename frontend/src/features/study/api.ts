@@ -98,13 +98,17 @@ export function useAsk(lectureId: string) {
   });
 }
 
-export type ArtifactProblem = 'not_ready' | 'not_published' | 'error';
+export type ArtifactProblem = 'not_ready' | 'not_published' | 'failed' | 'error';
 
-/** Classifies a study-material error: not generated yet, not published yet, or a real failure. */
+/**
+ * Classifies a study-material error: not generated yet, not published yet, generation failed
+ * (nothing is coming until a lecturer regenerates), or a request that failed.
+ */
 export function artifactProblem(error: unknown): ArtifactProblem {
   if (isApiError(error) && error.isNotFound) {
     if (error.code.endsWith('_not_published')) return 'not_published';
     if (error.code.endsWith('_not_ready')) return 'not_ready';
+    if (error.code.endsWith('_failed')) return 'failed';
   }
   return 'error';
 }

@@ -1,4 +1,4 @@
-import { Clock, EyeOff, Sparkles } from 'lucide-react';
+import { CircleAlert, Clock, EyeOff, Sparkles } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EmptyState, ErrorState, LoadingRegion, Skeleton } from '@/components/Feedback';
@@ -37,7 +37,10 @@ interface StudyErrorProps {
   extra?: ReactNode;
 }
 
-/** Not generated yet / not published yet / failed: three different messages, never a blank tab. */
+/**
+ * Not generated yet / not published yet / generation failed / request failed: different
+ * messages, never a blank tab.
+ */
 export function StudyError({
   error,
   notReady,
@@ -46,7 +49,18 @@ export function StudyError({
   onRetry,
   extra,
 }: StudyErrorProps) {
+  const { t } = useTranslation('study');
   const problem = artifactProblem(error);
+  if (problem === 'failed') {
+    return (
+      <EmptyState
+        icon={CircleAlert}
+        title={t('generationFailed.title')}
+        body={t('generationFailed.body')}
+        action={extra}
+      />
+    );
+  }
   if (problem === 'not_published' && notPublished !== undefined) {
     return (
       <EmptyState

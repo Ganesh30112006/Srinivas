@@ -316,6 +316,33 @@ def test_flashcards_not_generated_yet(api, sessions_factory) -> None:  # type: i
     assert response.status_code == 404 and response.json()["code"] == "revision_not_ready"
 
 
+def test_failed_generation_is_reported_as_failed_not_pending(api, sessions_factory) -> None:  # type: ignore[no-untyped-def]
+    """Seen in the full-stack run: an AI outage left students reading "still being generated"."""
+    client, seed, _ = api
+    lecture_id = run(add_lecture(sessions_factory, seed, consent=True, segments=[(0, "Text.", "en")]))
+
+    async def add(db):  # type: ignore[no-untyped-def]
+        db.add(
+            LectureArtifact(
+                lecture_id=lecture_id,
+                kind=ArtifactKind.notes,
+                model="m",
+                prompt_version="v",
+                status="failed",
+                content={"sections": []},
+            )
+        )
+
+    run(db_do(sessions_factory, add))
+    lecturer = login(client, "lecturer")
+    failed = client.get(f"/lectures/{lecture_id}/notes", headers=lecturer)
+    assert failed.status_code == 404 and failed.json()["code"] == "notes_failed"
+    # Regenerating turns it back into an ordinary pending artifact.
+    assert client.post(f"/lectures/{lecture_id}/notes/regenerate", headers=lecturer).status_code == 202
+    pending = client.get(f"/lectures/{lecture_id}/notes", headers=lecturer)
+    assert pending.status_code == 200 and pending.json()["generation_status"] == "pending"
+
+
 # ── API: profile, password, device settings, system info ───────────────────────────────────────
 
 

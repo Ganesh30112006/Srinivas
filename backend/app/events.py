@@ -25,6 +25,12 @@ ASR_PENDING = "asr:pending"
 ASR_WAKE = "asr:wake"
 NOTES_JOBS = "jobs:notes"
 
+# Longest server-side wait any process asks Redis for (BLPOP / pub-sub polling).
+MAX_BLOCKING_READ_S = 5
+# redis-py 8 defaults socket_timeout to 5 s, which kills a 5 s BLPOP just before Redis answers
+# and crashed the notes worker. Reads must be allowed to outlast the longest blocking call.
+REDIS_SOCKET_TIMEOUT_S = 30
+
 
 def live_stream(lecture_id: str) -> str:
     return f"live:{lecture_id}"
@@ -39,7 +45,12 @@ def device_channel(device_id: str) -> str:
 
 
 def create_redis() -> aioredis.Redis:
-    return aioredis.from_url(get_settings().redis_url, decode_responses=True)
+    return aioredis.from_url(
+        get_settings().redis_url,
+        decode_responses=True,
+        socket_timeout=REDIS_SOCKET_TIMEOUT_S,
+        socket_keepalive=True,
+    )
 
 
 def now_ms() -> int:

@@ -11,6 +11,22 @@ TELUGU = (0x0C00, 0x0C7F)
 DEVANAGARI = (0x0900, 0x097F)
 
 
+# Letters a lecture can contain (English, Telugu, Hindi). Whisper's random samples and
+# hallucinations sometimes emit other scripts ("邸rup 邶失明obra"), which are never real here.
+_SUPPORTED_LETTERS = (
+    (0x0000, 0x024F),  # Latin, incl. Latin-1 and Extended-A/B (names, loanwords)
+    (0x1E00, 0x1EFF),  # Latin Extended Additional
+    DEVANAGARI,
+    (0xA8E0, 0xA8FF),  # Devanagari Extended
+    TELUGU,
+)
+
+
+def in_supported_script(word: str) -> bool:
+    """False if any letter of the word is outside Latin, Devanagari and Telugu."""
+    return all(any(lo <= ord(ch) <= hi for lo, hi in _SUPPORTED_LETTERS) for ch in word if ch.isalpha())
+
+
 def _word_script(word: str) -> str | None:
     for ch in word:
         code = ord(ch)

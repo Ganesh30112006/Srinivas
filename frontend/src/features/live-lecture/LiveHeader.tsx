@@ -61,8 +61,10 @@ export function LiveHeader({
 }: LiveHeaderProps) {
   const { t } = useTranslation('live');
   const { t: tc } = useTranslation();
-  const label = t(connectionLabel(connection));
-  const live = connection.status === 'live';
+  // The server closes the socket a few seconds after the lecture ends; follow the status at once.
+  const ended = status === 'completed' || status === 'failed';
+  const label = t(ended ? 'connection.closedEnded' : connectionLabel(connection));
+  const live = !ended && connection.status === 'live';
   return (
     <div className={styles.header}>
       <LectureStatusBadge status={status} paused={paused} />
@@ -79,14 +81,18 @@ export function LiveHeader({
         </span>
       )}
       <StatusBadge
-        kind={live ? 'connected' : connection.status === 'closed' ? 'idle' : 'disconnected'}
+        kind={
+          live ? 'connected' : ended || connection.status === 'closed' ? 'idle' : 'disconnected'
+        }
         icon={live ? Radio : WifiOff}
         label={label}
       />
-      <span className={styles.stat} title={t('latencyHint')}>
-        <Activity aria-hidden="true" />
-        {latencyMs === null ? t('latencyUnknown') : t('latency', { ms: latencyMs })}
-      </span>
+      {!ended && (
+        <span className={styles.stat} title={t('latencyHint')}>
+          <Activity aria-hidden="true" />
+          {latencyMs === null ? t('latencyUnknown') : t('latency', { ms: latencyMs })}
+        </span>
+      )}
       <Button
         variant={announce ? 'primary' : 'ghost'}
         icon={Megaphone}

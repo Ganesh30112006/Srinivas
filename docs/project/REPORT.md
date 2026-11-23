@@ -259,8 +259,12 @@ The class diagram is in [UML.md](UML.md).
 ### 7.3 Streaming speech recognition
 
 - Whisper processes 30-second windows and is not a streaming model.
-- The worker re-decodes a sliding window every few hundred milliseconds. It commits only the words that two consecutive decodes agree on (*local agreement*).
+- The worker re-decodes a sliding window every 1.5 s (`ASR_LIVE_INTERVAL_S`). It commits only the words that two consecutive decodes agree on (*local agreement*).
 - Uncommitted text is sent as a *partial*, and committed text as a *final*.
+- **Window seams:** Whisper's word end times are often slightly early, so a cut at the last committed word can split it. Each decode therefore re-hears 1 s of already-committed audio. A word counts as new only if most of it lies after the cut. A 1–5 word repeat of the committed text at the cut is dropped, as is a very short, low-confidence fragment there. In testing with real faster-whisper, this removed doubled words ("for For example") and stray fragments ("too many Any"), and it recovered words that had been mangled at the cut ("POOT" → "throughput").
+- **No text prompt:** Whisper can be prompted with the previous transcript text. In testing, this made short windows repeat the prompt or degenerate into junk, and the window's real speech was lost. Decodes therefore use the 1 s of context audio instead of a prompt.
+- **Unreliable decodes:** as backstops, a temperature-fallback result that still scores below −1 log-probability is dropped, a phrase repeated three or more times in a row is collapsed, and words in scripts a lecture cannot contain (anything other than Latin, Telugu or Devanagari) are dropped.
+- **Hallucinations:** a segment that is uncertain on every signal is discarded: average log-probability below −1, no-speech probability above 0.3, and mean word probability below 0.5. Whisper produces such segments on near-silent fragments ("You", "I'll see you in the next video").
 - The decode language is fixed to the lecture's language hint, so a language switch cannot stall agreement (D6). The language of each final segment is detected afterwards and shown as EN/TE/HI.
 
 ### 7.4 AI features

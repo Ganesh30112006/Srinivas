@@ -40,6 +40,15 @@ log = get_logger("asr")
 CHUNK_S = CHUNK_MS / 1000
 WINDOW_S = 20.0  # longest audio per Whisper call (Whisper's context is 30 s)
 CATCH_UP_MARGIN_S = 2.0
+# Committed audio re-decoded before each window. Without it Whisper hears the word at the cut
+# only in part and turns its tail into a stray or mangled word ("too many" + "Any", "ready" +
+# "EQ"); with it the word is heard whole, and words ending before the cut are discarded.
+CONTEXT_S = 1.0
+# No text prompt (initial_prompt) for any decode. Tested with real recordings, prompting with the
+# previous 200 characters made short windows regurgitate the prompt ("... several processes are
+# ready to run. In a multi-programmed system ...") or degenerate on every fallback attempt
+# ("乾 乾 乾"), losing the speech, while the same audio without a prompt decoded cleanly. The
+# context audio above gives the decoder its continuity instead.
 LIVE_BEAM = 1
 BATCH_BEAM = 5
 
@@ -50,7 +59,6 @@ class LiveState:
     decoded_until: float = 0.0
     partial_events: dict[str, list[int]] = field(default_factory=dict)
     last_partial: tuple[str, str] | None = None  # (segment_id, text) last published
-    context_text: str = ""
 
 
 @dataclass
@@ -139,7 +147,6 @@ class Emitter:
             )
             for old in self.state.partial_events.pop(row["segment_id"], []):
                 await delete_live_event(self.ctx.redis, self.lecture_key, old)  # D5: trim superseded partials
-            self.state.context_text = (self.state.context_text + " " + row["text"])[-200:]
         partial = update.partial
         if partial is not None and self.state.last_partial != (partial.segment_id, partial.text):
             event_seq = await publish_live(
@@ -176,20 +183,28 @@ async def _transcribe(
     end_s: float,
     beam: int,
     prompt: str | None,
+    context_s: float = 0.0,
 ) -> list[Word] | None:
-    first, last = _seq_of(start_s), max(_seq_of(start_s), int(np.ceil(end_s / CHUNK_S - 1e-9)) - 1)
+    last = max(_seq_of(start_s), int(np.ceil(end_s / CHUNK_S - 1e-9)) - 1)
+    audio_start = max(0.0, start_s - context_s)
+    first = _seq_of(audio_start)
     audio = await load_chunks(db, ctx.store, lecture.id, first, last)
+    if audio is None and audio_start < start_s:
+        # The context audio is not available (e.g. inside a gap): decode the window alone.
+        audio_start = start_s
+        first = _seq_of(start_s)
+        audio = await load_chunks(db, ctx.store, lecture.id, first, last)
     if audio is None:
         return None
     offset = first * CHUNK_S
-    window = audio[int((start_s - offset) * SAMPLE_RATE) : int((end_s - offset) * SAMPLE_RATE)]
+    window = audio[int((audio_start - offset) * SAMPLE_RATE) : int((end_s - offset) * SAMPLE_RATE)]
     language = lecture.language_hint if ctx.settings.asr_language_mode == "fixed" else None
     db.add(LatencyMark(lecture_id=lecture.id, seq=last, stage="asr_start", ts_ms=now_ms()))
     words = await asyncio.to_thread(
         ctx.transcriber.transcribe, window, language=language, prompt=prompt, beam_size=beam
     )
     db.add(LatencyMark(lecture_id=lecture.id, seq=last, stage="asr_end", ts_ms=now_ms()))
-    return [Word(w.text, w.start + start_s, w.end + start_s, w.probability) for w in words]
+    return [Word(w.text, w.start + audio_start, w.end + audio_start, w.probability) for w in words]
 
 
 async def _decode_complete_span(
@@ -206,12 +221,18 @@ async def _decode_complete_span(
     while committer.committed_until < end_s - 1e-3:
         start = committer.committed_until
         window_end = min(start + WINDOW_S, end_s)
-        words = await _transcribe(ctx, db, lecture, start, window_end, beam, prompt)
+        words = await _transcribe(ctx, db, lecture, start, window_end, beam, prompt, _context(committer))
         if words is None:
             break
         cut = window_end if window_end >= end_s else window_end - CATCH_UP_MARGIN_S
         finals.extend(committer.force(words, until=max(cut, start + 0.5)).finals)
     return finals
+
+
+def _context(committer: LiveCommitter) -> float:
+    """Context only when continuing this committer's own audio: after a jump (gap, backfill
+    boundary) the audio before the cut belongs to another committer and must not be re-heard."""
+    return CONTEXT_S if committer.tail else 0.0
 
 
 def _gap_at(gaps: list[LectureGap], seq: int) -> LectureGap | None:
@@ -351,9 +372,7 @@ async def process_lecture(ctx: AsrContext, lecture_id: uuid.UUID) -> bool:
             # Live-first after an outage: the audio before the gap is complete. Commit it fully;
             # the next step jumps the pointer over the gap.
             end = next_gap * CHUNK_S
-            finals = await _decode_complete_span(
-                ctx, db, lecture, committer, end, LIVE_BEAM, state.context_text or None
-            )
+            finals = await _decode_complete_span(ctx, db, lecture, committer, end, LIVE_BEAM, None)
             finals.extend(committer.flush(until=end))
             await emitter.live(Update(finals=finals))
             progress.committed_sample = round(committer.committed_until * SAMPLE_RATE)
@@ -363,14 +382,28 @@ async def process_lecture(ctx: AsrContext, lecture_id: uuid.UUID) -> bool:
         if audio_end - committer.committed_until > WINDOW_S:
             window_end = committer.committed_until + WINDOW_S
             words = await _transcribe(
-                ctx, db, lecture, committer.committed_until, window_end, LIVE_BEAM, state.context_text or None
+                ctx,
+                db,
+                lecture,
+                committer.committed_until,
+                window_end,
+                LIVE_BEAM,
+                None,
+                _context(committer),
             )
             if words is not None:
                 await emitter.live(committer.force(words, until=window_end - CATCH_UP_MARGIN_S))
             more = True
         elif audio_end - state.decoded_until >= ctx.settings.asr_live_interval_s:
             words = await _transcribe(
-                ctx, db, lecture, committer.committed_until, audio_end, LIVE_BEAM, state.context_text or None
+                ctx,
+                db,
+                lecture,
+                committer.committed_until,
+                audio_end,
+                LIVE_BEAM,
+                None,
+                _context(committer),
             )
             if words is not None:
                 await emitter.live(committer.update(words, window_end=audio_end))
@@ -437,7 +470,7 @@ async def _finalize(
         if next_gap is not None:
             run_end = min(run_end, next_gap - 1)
         finals = await _decode_complete_span(
-            ctx, db, lecture, committer, (run_end + 1) * CHUNK_S, BATCH_BEAM, state.context_text or None
+            ctx, db, lecture, committer, (run_end + 1) * CHUNK_S, BATCH_BEAM, None
         )
         await emitter.live(Update(finals=finals))
         seq = max(run_end + 1, _seq_of(committer.committed_until))

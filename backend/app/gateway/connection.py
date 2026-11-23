@@ -47,6 +47,10 @@ class SessionState:
     gaps: dict[int, LectureGap] = field(default_factory=dict)  # open gaps by start_seq
 
 
+DRAIN_TIMEOUT_S = 10.0
+PUBSUB_CLOSE_TIMEOUT_S = 2.0
+
+
 class Registry:
     """At most one live connection per device; a newer one replaces the older (close 4409)."""
 
@@ -61,9 +65,11 @@ class Registry:
         task.add_done_callback(self._tasks.discard)
         task.add_done_callback(_log_cleanup_failure)
 
-    async def drain(self) -> None:
+    async def drain(self, timeout_s: float = DRAIN_TIMEOUT_S) -> None:
+        """Waits for connection cleanups at shutdown, but never forever (a stuck one would hold
+        up `systemctl stop` until systemd kills the process)."""
         if self._tasks:
-            await asyncio.gather(*self._tasks, return_exceptions=True)
+            await asyncio.wait(set(self._tasks), timeout=timeout_s)
 
     async def claim(self, device_id: uuid.UUID, conn: DeviceConnection) -> None:
         old = self._by_device.get(device_id)
@@ -390,8 +396,12 @@ class DeviceConnection:
                 if message is not None and isinstance(message.get("data"), str):
                     await self.send(json.loads(message["data"]))
         finally:
+            # Cancelled mid-read, the connection may never answer UNSUBSCRIBE: bound the cleanup
+            # (an unbounded wait here hung the gateway's shutdown in the test suite).
             with contextlib.suppress(Exception):
-                await pubsub.unsubscribe()
+                async with asyncio.timeout(PUBSUB_CLOSE_TIMEOUT_S):
+                    await pubsub.unsubscribe()
+            with contextlib.suppress(Exception):
                 await pubsub.aclose()  # type: ignore[no-untyped-call]
 
     async def _on_disconnect(self) -> None:

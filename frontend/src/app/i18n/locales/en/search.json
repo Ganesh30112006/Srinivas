@@ -1,13 +1,15 @@
 {
   "title": "Search lectures",
-  "description": "Find a topic across every transcript, then jump straight to that moment.",
+  "description": "Search every transcript.",
   "label": "Search all transcripts",
   "placeholder": "e.g. convoy effect",
   "submit": "Search",
   "subject": "Subject",
   "allSubjects": "All subjects",
-  "results_one": "{{count}} match in {{lectures}} lecture",
-  "results_other": "{{count}} matches in {{lectures}} lectures",
+  "resultMatches_one": "{{count}} match",
+  "resultMatches_other": "{{count}} matches",
+  "resultLectures_one": "in {{count}} lecture",
+  "resultLectures_other": "in {{count}} lectures",
   "moreInLecture_one": "+{{count}} more match in this lecture",
   "moreInLecture_other": "+{{count}} more matches in this lecture",
   "openAt": "Open at {{time}}",
@@ -15,6 +17,6 @@
   "promptBody": "Type a word or phrase — English, Telugu or Hindi.",
   "tooShort": "Type at least 2 characters.",
   "noResultsTitle": "No matches for \"{{query}}\"",
-  "noResultsBody": "Check the spelling, try a shorter phrase, or search all subjects.",
+  "noResultsBody": "Try a shorter phrase or all subjects.",
   "errorTitle": "Search failed"
 }

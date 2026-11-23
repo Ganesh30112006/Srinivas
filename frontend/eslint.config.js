@@ -95,7 +95,7 @@ export default defineConfig([
 
   // Tests and mocks may import test utilities.
   {
-    files: ['src/**/*.test.{ts,tsx}', 'src/test/**/*.{ts,tsx}', 'e2e/**/*.ts'],
+    files: ['src/**/*.test.{ts,tsx}', 'src/test/**/*.{ts,tsx}', 'e2e/**/*.ts', 'e2e-stack/**/*.ts'],
     rules: {
       'no-restricted-imports': 'off',
       '@typescript-eslint/no-floating-promises': 'error',
@@ -108,7 +108,7 @@ export default defineConfig([
   },
 
   {
-    files: ['*.config.{js,ts}', 'scripts/**/*.mjs', 'e2e/**/*.ts'],
+    files: ['*.config.{js,ts}', 'scripts/**/*.mjs', 'e2e/**/*.ts', 'e2e-stack/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
   {
