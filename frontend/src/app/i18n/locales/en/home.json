@@ -1,14 +1,14 @@
 {
   "greeting": "Hello, {{name}}",
   "lecturer": {
-    "subtitle": "Prepare today's lecture, then press record on the microphone.",
+    "subtitle": "Prepare a lecture, then press record.",
     "devicesHeading": "Your microphones",
     "recentHeading": "Your recent lectures",
     "upcoming": "Prepared lectures",
     "openLive": "Open live view"
   },
   "student": {
-    "subtitle": "Follow a lecture live, or revise one you missed.",
+    "subtitle": "Follow a lecture live or revise one.",
     "liveHeading": "Happening now",
     "liveEmpty": "No lecture is being recorded right now.",
     "recentHeading": "Recent lectures",
@@ -17,7 +17,7 @@
     "seeAll": "See all lectures"
   },
   "admin": {
-    "subtitle": "Monitor classroom microphones and manage people and subjects.",
+    "subtitle": "Microphones, people and subjects.",
     "devicesHeading": "Devices",
     "manageUsers": "Manage users",
     "manageSubjects": "Manage subjects",

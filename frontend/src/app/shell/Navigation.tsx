@@ -1,4 +1,4 @@
-import { LogOut, Mic, Settings } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { User } from '@/api/types';
@@ -26,7 +26,6 @@ export function TopBar({ user }: { user: User }) {
         to={user.role === 'admin' ? paths.devices() : paths.home()}
         className={cx(styles.brand)}
       >
-        <Mic aria-hidden="true" />
         <span>{tc('appName')}</span>
       </NavLink>
       <nav aria-label={t('nav.label')} className={styles.topNav}>
@@ -40,7 +39,6 @@ export function TopBar({ user }: { user: User }) {
                   end={item.key === 'home'}
                   className={({ isActive }) => cx(styles.topLink, isActive && styles.active)}
                 >
-                  <item.icon aria-hidden="true" />
                   {t(`nav.${item.key}`)}
                 </NavLink>
               </li>

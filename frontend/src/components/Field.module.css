@@ -7,7 +7,7 @@
 
 .label {
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text);
 }
 
@@ -33,8 +33,8 @@
 
 .control {
   width: 100%;
-  min-height: var(--size-touch);
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--size-control);
+  padding: var(--space-1) var(--space-2);
   background: var(--color-surface);
   color: var(--color-text);
   border: var(--border-width) solid var(--color-border-strong);
@@ -57,7 +57,7 @@
 }
 
 textarea.control {
-  min-height: calc(var(--size-touch) * 3);
+  min-height: calc(var(--size-control) * 3);
   resize: vertical;
   line-height: var(--line-height-body);
   font-family: var(--font-mono);
@@ -67,15 +67,14 @@ textarea.control {
 .check {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
-  min-height: var(--size-touch);
-  padding: var(--space-2) 0;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
   cursor: pointer;
 }
 
 .check input {
-  width: var(--size-icon);
-  height: var(--size-icon);
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
   margin-top: var(--space-0-5);
   accent-color: var(--color-accent);
   flex-shrink: 0;

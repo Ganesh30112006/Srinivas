@@ -1,5 +1,5 @@
 import { formatDistanceStrict, parseISO } from 'date-fns';
-import { Signal, SignalHigh, SignalLow, SignalMedium, SignalZero } from 'lucide-react';
+import { Signal, SignalHigh, SignalLow, SignalMedium, WifiOff } from 'lucide-react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { Device } from '@/api/types';
@@ -15,7 +15,7 @@ const SIGNAL_ICON = {
   good: SignalHigh,
   fair: SignalMedium,
   weak: SignalLow,
-  none: SignalZero,
+  none: WifiOff, // SignalZero draws a lone dot that reads like a stray full stop
 } as const;
 
 export function BufferMeter({ label, pct }: { label: string; pct: number }) {

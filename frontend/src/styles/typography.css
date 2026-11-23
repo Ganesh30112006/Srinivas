@@ -6,19 +6,19 @@
 }
 
 .prose > * + * {
-  margin-top: var(--space-4);
+  margin-top: var(--space-3);
 }
 
 .prose h2 {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  margin-top: var(--space-8);
-}
-
-.prose h3 {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   margin-top: var(--space-6);
+}
+
+.prose h3 {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  margin-top: var(--space-5);
 }
 
 .prose h4 {
@@ -47,8 +47,9 @@
 .prose pre {
   background: var(--color-surface-sunken);
   border-radius: var(--radius-md);
-  padding: var(--space-4);
-  overflow-x: auto;
+  padding: var(--space-3);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .prose pre code {
@@ -62,18 +63,21 @@
   color: var(--color-text-muted);
 }
 
+/* Tables fit the column (no sideways scroll); long words wrap inside cells. */
 .prose table {
   border-collapse: collapse;
   width: 100%;
-  display: block;
-  overflow-x: auto;
+  table-layout: fixed;
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
 }
 
 .prose th,
 .prose td {
   border: var(--border-width) solid var(--color-border);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   text-align: left;
+  vertical-align: top;
 }
 
 /* Indic scripts: never synthesise bold/italics, which breaks conjuncts. */

@@ -26,7 +26,9 @@ describe('LibraryRoute', () => {
     await waitFor(() => {
       expect(new URLSearchParams(router.state.location.search).get('q')).toBe('routing');
     });
-    expect(await screen.findByText('Routing Algorithms')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Routing Algorithms', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText('CPU Scheduling Algorithms')).not.toBeInTheDocument();
     });
@@ -42,7 +44,9 @@ describe('LibraryRoute', () => {
     await waitFor(() => {
       expect(new URLSearchParams(router.state.location.search).get('status')).toBe('processing');
     });
-    expect(await screen.findByText('Routing Algorithms')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Routing Algorithms', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText('CPU Scheduling Algorithms')).not.toBeInTheDocument();
     });

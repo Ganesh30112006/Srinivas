@@ -24,9 +24,7 @@ describe('AskTab', () => {
     await ask(user, 'What was the main topic?');
 
     expect(await screen.findByText('Probably about scheduling.')).toBeInTheDocument();
-    expect(
-      screen.getByText(/isn't linked to any part of the transcript/, { exact: false }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Not linked to the transcript/, { exact: false })).toBeInTheDocument();
     expect(screen.queryByText('From the lecture')).not.toBeInTheDocument();
   });
 

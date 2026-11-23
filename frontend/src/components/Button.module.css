@@ -3,13 +3,13 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: var(--size-touch);
-  min-width: var(--size-touch);
-  padding: 0 var(--space-4);
+  min-height: var(--size-control);
+  min-width: var(--size-control);
+  padding: 0 var(--space-3);
   border: var(--border-width) solid transparent;
   border-radius: var(--radius-md);
   font-size: var(--font-size-md);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-regular);
   line-height: var(--line-height-tight);
   text-decoration: none;
   white-space: nowrap;
@@ -23,8 +23,8 @@
 }
 
 .button svg {
-  width: var(--size-icon);
-  height: var(--size-icon);
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
   flex-shrink: 0;
 }
 

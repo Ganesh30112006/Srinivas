@@ -15,20 +15,20 @@
   width: 100%;
   margin-bottom: var(--space-1);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .choice {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--size-touch);
+  min-height: var(--size-control);
   cursor: pointer;
 }
 
 .choice input {
-  width: var(--size-icon);
-  height: var(--size-icon);
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
   accent-color: var(--color-accent);
 }
 
@@ -70,5 +70,11 @@
 }
 
 .skeleton {
-  height: var(--size-touch);
+  height: var(--size-control);
+}
+
+/* Clear separation between settings groups. */
+.sections > section + section {
+  padding-top: var(--space-5);
+  border-top: var(--border-width) solid var(--color-border);
 }

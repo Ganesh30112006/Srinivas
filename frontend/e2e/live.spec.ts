@@ -6,7 +6,7 @@ test('a lecturer prepares a lecture and follows it live', async ({ page }) => {
   await page.getByLabel('Subject').selectOption(IDS.subjectOs);
   await page.getByLabel('Lecture title').fill('Deadlocks: Banker’s algorithm');
   await page.getByLabel('Microphone', { exact: true }).selectOption(IDS.room204);
-  await page.getByText('Students have been told this lecture is recorded and transcribed').click();
+  await page.getByText('Students know this lecture is recorded').click();
   await page.getByRole('button', { name: 'Prepare lecture' }).click();
 
   await expect(page).toHaveURL(/\/lectures\/[^/]+\/live$/);
@@ -33,7 +33,7 @@ test('a student sees an outage gap filled in place, and a dropped socket resumes
   await mockLive.seek(page, live, 625_000);
   await mockLive.setSpeed(page, live, 10);
   await expect(page.getByText('Audio from 10:32 syncing…')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText(/Live captions are paused/)).toBeVisible();
+  await expect(page.getByText(/Microphone reconnecting/)).toBeVisible();
 
   // The browser's own socket drops too; it reconnects and resumes from its last seq.
   await mockLive.drop(page, live);
@@ -42,7 +42,7 @@ test('a student sees an outage gap filled in place, and a dropped socket resumes
   // The device comes back at 13:32 and uploads the buffered audio 9 s later.
   await mockLive.seek(page, live, 815_000);
   await expect(page.getByText(/^Audio .* syncing…$/)).toHaveCount(0, { timeout: 20_000 });
-  await expect(page.getByText(/Live captions are paused/)).toBeHidden();
+  await expect(page.getByText(/Microphone reconnecting/)).toBeHidden();
 
   const ids = await renderedSegmentIds(page);
   expect(ids.length).toBeGreaterThan(0);

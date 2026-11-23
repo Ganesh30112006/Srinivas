@@ -37,7 +37,7 @@
     "liveNow": "This lecture is being recorded now.",
     "openLive": "Open live view",
     "failed": "Recording failed. The transcript below may be incomplete.",
-    "processing": "The recording is being processed. Notes and questions will appear when ready.",
+    "processing": "Processing. Notes will appear when ready.",
     "scheduled": "This lecture hasn't started yet.",
     "tabs": {
       "label": "Lecture sections",
@@ -50,12 +50,12 @@
       "questions": "Questions",
       "ask": "Ask"
     },
-    "consentPending": "This lecture was started on the device without a prepared lecture. Students can't see it until you confirm consent and give it a title.",
+    "consentPending": "Started on the device without preparation. Confirm consent and add a title so students can see it.",
     "confirmConsent": "Confirm consent",
     "consentConfirmed": "Consent confirmed. Students can now see this lecture.",
     "delete": "Delete lecture",
     "deleteConfirmTitle": "Delete this lecture?",
-    "deleteConfirmBody": "The recording, transcript, notes and questions are removed for everyone. This cannot be undone.",
+    "deleteConfirmBody": "Removes the recording, transcript and notes for everyone. This cannot be undone.",
     "deleted": "Lecture deleted."
   },
   "export": {
@@ -88,7 +88,7 @@
     "editLine": "Correct this line",
     "edited": "Corrected",
     "editTitle": "Correct transcript line",
-    "editDescription": "Line at {{time}}. Fix recognition mistakes; the timing stays the same.",
+    "editDescription": "Line at {{time}}. Fix recognition mistakes.",
     "editLabel": "Text",
     "editEmpty": "The line can't be empty.",
     "editSave": "Save correction",
@@ -106,19 +106,19 @@
   },
   "prepare": {
     "title": "Prepare a lecture",
-    "description": "Fill this in, then press record on the classroom microphone.",
+    "description": "Fill this in, then press record.",
     "subject": "Subject",
     "subjectPlaceholder": "Choose a subject",
     "titleLabel": "Lecture title",
     "titleHint": "Students search by this, so be specific.",
     "titlePlaceholder": "e.g. Deadlocks: Banker's algorithm",
     "language": "Main language",
-    "languageHint": "Telugu and Hindi lines are still detected automatically.",
+    "languageHint": "Telugu and Hindi are detected automatically.",
     "device": "Microphone",
     "devicePlaceholder": "Choose a microphone",
     "deviceBusy": "{{name}} (recording)",
     "deviceOffline": "{{name}} (offline)",
-    "noDevices": "No microphone is assigned to you. Ask an administrator to assign one.",
+    "noDevices": "No microphone assigned. Ask an administrator.",
     "submit": "Prepare lecture",
     "submitting": "Preparing…",
     "success": "Lecture prepared. Press record on the microphone.",
@@ -134,7 +134,7 @@
       "deviceNotAssigned": "That microphone isn't assigned to you.",
       "generic": "Couldn't prepare the lecture. Please try again."
     },
-    "consent": "Students have been told this lecture is recorded and transcribed",
-    "consentHint": "Required. Recording is always visible on the device (red light)."
+    "consent": "Students know this lecture is recorded",
+    "consentHint": "Required."
   }
 }

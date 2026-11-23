@@ -3,16 +3,16 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border: var(--border-width) solid;
   border-radius: var(--radius-md);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   line-height: var(--line-height-snug);
 }
 
 .banner > svg {
-  width: var(--size-icon);
-  height: var(--size-icon);
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
   flex-shrink: 0;
   margin-top: var(--space-0-5);
 }
@@ -33,7 +33,7 @@
 .info {
   background: var(--color-accent-subtle);
   color: var(--color-accent-subtle-fg);
-  border-color: var(--color-accent);
+  border-color: var(--color-border);
 }
 
 .warning {
@@ -85,7 +85,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-10) var(--space-4);
+  padding: var(--space-8) var(--space-4);
   text-align: center;
   color: var(--color-text-muted);
 }

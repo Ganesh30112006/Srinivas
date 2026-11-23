@@ -120,7 +120,6 @@ export function FlashcardsTab() {
   return (
     <>
       <AiNote />
-      <p>{t('flashcards.intro')}</p>
       {cards.data.cards.length === 0 ? (
         <p>{t('flashcards.none')}</p>
       ) : (

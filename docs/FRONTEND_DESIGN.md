@@ -312,7 +312,7 @@ Versions are the latest stable at install time, pinned by the lockfile.
 | `date-fns` | Tree-shakable date formatting |
 | `i18next`, `react-i18next` | UI strings; English now, structured for Telugu and Hindi later |
 | `react-markdown` | Notes rendering without `innerHTML` (D2), lazy-loaded with the Notes tab |
-| `@fontsource-variable/inter`, `@fontsource/noto-sans-telugu`, `@fontsource/noto-sans-devanagari` | Self-hosted fonts. `unicode-range` means Telugu and Devanagari files download only when those glyphs appear. |
+| `@fontsource/noto-sans-telugu`, `@fontsource/noto-sans-devanagari` | Self-hosted Indic fonts (Latin text uses the system UI font). `unicode-range` means these files download only when those glyphs appear. |
 
 Deliberately left out: Tailwind (the brief asks for CSS Modules), `clsx` (`lib/cx.ts` is 5 lines), Radix Select and Popover (native `<select>` and `<input type="date">` are more accessible on phones), a date-picker library, a rich-text editor (notes are markdown with a live preview), `axios`, and `ajv` (fixtures are type-checked against the generated types instead).
 
@@ -335,7 +335,7 @@ Deliberately left out: Tailwind (the brief asks for CSS Modules), `clsx` (`lib/c
 ## 7. Design system summary
 
 - **Tokens** (`styles/tokens.css`): `--space-1..12` on a 4 px scale; `--radius-sm/md/lg`; `--font-size-*` (body 17 px, the user setting scales `--transcript-font-size` from 15 to 22 px); `--leading-body: 1.6`; `--measure: 70ch`; `--shadow-1/2`; `--duration-fast/base`, zeroed under `prefers-reduced-motion`.
-- **Semantic colours**, defined once per theme: `--color-surface`, `--color-surface-raised`, `--color-text`, `--color-text-muted`, `--color-border`, `--color-accent` (one accent, a deep teal), `--color-focus-ring`, `--color-danger`, and the status tokens `--color-status-recording`, `-processing`, `-connected`, `-disconnected`, `-idle`, each as a `-fill` / `-fg` / `-border` triple. Every pair is checked for AA contrast in both themes by a unit test that parses the token files.
+- **Semantic colours**, defined once per theme: `--color-surface`, `--color-surface-raised`, `--color-text`, `--color-text-muted`, `--color-border`, `--color-accent` (one accent, a plain blue; white background, flat surfaces, small radii, no pills), `--color-focus-ring`, `--color-danger`, and the status tokens `--color-status-recording`, `-processing`, `-connected`, `-disconnected`, `-idle`, each as a `-fill` / `-fg` / `-border` triple. Every pair is checked for AA contrast in both themes by a unit test that parses the token files.
 - **Status mapping** (always colour + icon + label):
 
   | Meaning | LED | Icon | Label |

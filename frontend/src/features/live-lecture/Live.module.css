@@ -8,6 +8,14 @@
   border-bottom: var(--border-width) solid var(--color-border);
 }
 
+/* Full-bleed over the phone gutter; on wider screens line up with the content instead. */
+@media (min-width: 48rem) {
+  .sticky {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+
 .header {
   display: flex;
   flex-wrap: wrap;

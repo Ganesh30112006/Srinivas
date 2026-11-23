@@ -27,7 +27,7 @@ describe('PrepareLectureForm', () => {
     await user.type(screen.getByLabelText('Lecture title'), 'Deadlocks: Banker’s algorithm');
     await user.selectOptions(screen.getByLabelText('Microphone'), DEVICE_IDS.room204);
     await user.click(
-      screen.getByLabelText('Students have been told this lecture is recorded and transcribed', {
+      screen.getByLabelText('Students know this lecture is recorded', {
         exact: false,
       }),
     );

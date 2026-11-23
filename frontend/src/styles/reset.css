@@ -16,6 +16,7 @@ html {
 
 body {
   min-height: 100dvh;
+  overflow-x: clip;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);

@@ -1,6 +1,6 @@
 {
   "title": "Settings",
-  "description": "Your account, and how the app looks and behaves on this device.",
+  "description": "Account and display preferences.",
   "appearance": {
     "heading": "Appearance",
     "theme": "Theme",
@@ -21,22 +21,20 @@
     },
     "preview": "Round Robin లో ప్రతి process కి ఒక time quantum ఇస్తాం। यह exam के लिए important है।",
     "autoScroll": "Follow the live transcript automatically",
-    "autoScrollHint": "When on, the live transcript scrolls to new text while you're at the bottom.",
-    "announce": "Read new transcript lines aloud with a screen reader",
-    "announceHint": "Announces each finished line on the live screen. Off by default to avoid interrupting."
+    "autoScrollHint": "Scrolls to new text while you are at the bottom.",
+    "announce": "Read new lines aloud (screen reader)"
   },
   "language": {
     "heading": "Languages",
-    "showLabels": "Show language labels (EN, TE, HI) on transcript lines",
-    "showTransliteration": "Show Telugu and Hindi lines in Latin script too",
-    "showTransliterationHint": "Adds a romanised version under each Telugu or Hindi line.",
+    "showLabels": "Show language labels (EN, TE, HI)",
+    "showTransliteration": "Show Latin script for Telugu and Hindi",
     "filter": "Show transcript lines in",
-    "filterHint": "Hidden languages are collapsed, not deleted. At least one language stays visible.",
+    "filterHint": "At least one language stays visible.",
     "uiLanguage": "Interface language",
     "uiLanguageComingSoon": "{{language}} (coming soon)"
   },
   "saved": "Saved",
-  "deviceNote": "The settings below are saved on this device only.",
+  "deviceNote": "Saved on this device only.",
   "profile": {
     "heading": "Profile",
     "name": "Full name",
@@ -54,7 +52,7 @@
   },
   "password": {
     "heading": "Password",
-    "intro": "Changing your password signs you out on your other devices.",
+    "intro": "Signs you out on other devices.",
     "current": "Current password",
     "currentRequired": "Enter your current password.",
     "new": "New password",
@@ -76,7 +74,7 @@
   },
   "system": {
     "heading": "Server",
-    "intro": "Read-only. These values are set in the server configuration file.",
+    "intro": "Read-only. Set in the server config.",
     "environment": "Environment",
     "llm": "AI model (notes, Q&A)",
     "embedding": "Embedding model",
@@ -86,7 +84,7 @@
     "retentionForever": "Keep audio forever",
     "retentionDays_one": "Delete audio after {{count}} day",
     "retentionDays_other": "Delete audio after {{count}} days",
-    "retentionHint": "Only the audio is deleted; transcripts and notes are kept.",
+    "retentionHint": "Only audio is deleted.",
     "deviceDefaults": "Device defaults",
     "deviceDefaultsValue": "Gain {{gain}}×, voice detection {{vad}}",
     "on": "on",

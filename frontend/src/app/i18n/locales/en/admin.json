@@ -30,7 +30,7 @@
     "email": "Email",
     "role": "Role",
     "password": "Initial password",
-    "passwordHint": "At least 8 characters. Share it privately; they should change it after signing in.",
+    "passwordHint": "At least 8 characters. Share it privately.",
     "status": "Status",
     "active": "Active",
     "disabled": "Disabled",

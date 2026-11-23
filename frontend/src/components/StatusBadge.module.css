@@ -2,18 +2,18 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-0-5) var(--space-2);
+  padding: 0 var(--space-1);
   border: var(--border-width) solid;
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-snug);
   white-space: nowrap;
 }
 
 .badge svg {
-  width: var(--size-icon-sm);
-  height: var(--size-icon-sm);
+  width: var(--size-dot);
+  height: var(--size-dot);
   flex-shrink: 0;
 }
 

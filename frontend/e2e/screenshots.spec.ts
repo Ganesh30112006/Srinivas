@@ -16,6 +16,9 @@ for (const shot of SHOTS) {
   test(shot.name, async ({ page }) => {
     await signIn(page, shot.role, shot.path);
     await expect(page.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByText(/^Loading transcript/)).toHaveCount(0, { timeout: 15_000 });
+    // Park the pointer so no card or row is captured in its hover state.
+    await page.mouse.move(0, 0);
     await page.screenshot({ path: `docs/screenshots/${shot.name}.png`, fullPage: false });
   });
 }

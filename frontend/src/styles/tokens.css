@@ -16,23 +16,23 @@
  */
 :root {
   /* ── Neutral surfaces & text ─────────────────────────────────────────── */
-  --color-bg: light-dark(#f7f7f5, #111315);
-  --color-surface: light-dark(#ffffff, #181b1e);
-  --color-surface-sunken: light-dark(#efefec, #0c0e10);
-  --color-surface-hover: light-dark(#f0f1ef, #22262a);
-  --color-text: light-dark(#1b1e22, #e7e9ec);
-  --color-text-muted: light-dark(#545b64, #a5abb3);
-  --color-border: light-dark(#dcdedf, #2d3237);
-  --color-border-strong: light-dark(#7d848d, #737b85);
+  --color-bg: light-dark(#ffffff, #121212);
+  --color-surface: light-dark(#ffffff, #121212);
+  --color-surface-sunken: light-dark(#f5f5f5, #1c1c1c);
+  --color-surface-hover: light-dark(#f2f2f2, #222222);
+  --color-text: light-dark(#111111, #e6e6e6);
+  --color-text-muted: light-dark(#555555, #a3a3a3);
+  --color-border: light-dark(#dddddd, #333333);
+  --color-border-strong: light-dark(#8a8a8a, #6e6e6e);
   --color-overlay: light-dark(rgb(17 19 21 / 0.45), rgb(0 0 0 / 0.6));
 
   /* ── The single accent ───────────────────────────────────────────────── */
-  --color-accent: light-dark(#0d6b67, #5cc9c1);
-  --color-accent-hover: light-dark(#0a5653, #7fd8d1);
-  --color-accent-fg: light-dark(#ffffff, #082423);
-  --color-accent-subtle: light-dark(#e2f2f0, #12302e);
-  --color-accent-subtle-fg: light-dark(#0a524f, #9ee3dc);
-  --color-focus-ring: light-dark(#0d6b67, #5cc9c1);
+  --color-accent: light-dark(#1d4ed8, #7aa7ff);
+  --color-accent-hover: light-dark(#1e40af, #a3c2ff);
+  --color-accent-fg: light-dark(#ffffff, #0b1530);
+  --color-accent-subtle: light-dark(#eef2fb, #1a2235);
+  --color-accent-subtle-fg: light-dark(#1e3a8a, #c2d4ff);
+  --color-focus-ring: light-dark(#1d4ed8, #7aa7ff);
   --color-highlight: light-dark(#fff0a8, #5a4a0a);
   --color-highlight-active: light-dark(#ffd54a, #8a6d00);
   --color-highlight-fg: light-dark(#1b1e22, #fff8d6);
@@ -84,17 +84,18 @@
   --space-16: 4rem;
 
   /* ── Sizes ───────────────────────────────────────────────────────────── */
-  --size-touch: 2.75rem; /* 44px minimum touch target */
+  --size-touch: 2.75rem; /* 44px minimum touch target (nav) */
+  --size-control: 2.5rem; /* buttons and inputs; 36px on desktop */
   --size-icon-sm: 1rem;
   --size-icon: 1.25rem;
   --size-icon-lg: 1.5rem;
   --size-dot: 0.625rem;
-  --size-header: 3.5rem;
+  --size-header: 3rem;
   --size-avatar: 2rem;
-  --size-bottom-nav: 4rem;
+  --size-bottom-nav: 3.5rem;
   --size-sidebar: 20rem;
-  --size-container: 72rem;
-  --size-form: 28rem;
+  --size-container: 64rem;
+  --size-form: 26rem;
   --size-dialog: 32rem;
   --size-menu: 14rem;
   --size-tooltip: 20rem;
@@ -107,6 +108,7 @@
   --measure-transcript: 52rem;
   --size-timestamp: 4.25rem;
   --size-meter-label: 7.5rem;
+  --size-meter-value: 2.5rem; /* fits "100%" so every meter bar is the same length */
   --letter-spacing-caps: 0.04em;
   --border-width: 1px;
   --border-width-thick: 2px;
@@ -115,38 +117,36 @@
   --underline-offset: 0.2em;
 
   /* ── Radius ──────────────────────────────────────────────────────────── */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-full: 999px;
+  --radius-sm: 0.1875rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.25rem;
+  --radius-full: 0.25rem; /* no pills: badges are plain rectangles */
 
   /* ── Typography ──────────────────────────────────────────────────────── */
   --font-sans:
-    'Inter Variable', 'Noto Sans Telugu', 'Noto Sans Devanagari', system-ui, -apple-system,
-    'Segoe UI', Roboto, sans-serif;
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans Telugu', 'Noto Sans Devanagari',
+    sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', Menlo, monospace;
-  --font-size-xs: 0.8125rem;
-  --font-size-sm: 0.875rem;
-  --font-size-md: 1rem;
-  --font-size-body: 1.0625rem;
-  --font-size-lg: 1.25rem;
-  --font-size-xl: 1.5rem;
-  --font-size-2xl: 1.875rem;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-md: 0.9375rem;
+  --font-size-body: 0.9375rem;
+  --font-size-lg: 1.0625rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --line-height-tight: 1.25;
   --line-height-snug: 1.4;
-  --line-height-body: 1.6;
+  --line-height-body: 1.5;
   /* Mixed Telugu/Devanagari lines need extra room for vowel signs above and below. */
   --line-height-transcript: 1.75;
-  --transcript-font-size: 1.0625rem;
+  --transcript-font-size: 1rem;
 
   /* ── Elevation ───────────────────────────────────────────────────────── */
-  --shadow-1: 0 1px 2px light-dark(rgb(17 19 21 / 0.08), rgb(0 0 0 / 0.5));
-  --shadow-2:
-    0 4px 12px light-dark(rgb(17 19 21 / 0.12), rgb(0 0 0 / 0.55)),
-    0 1px 3px light-dark(rgb(17 19 21 / 0.08), rgb(0 0 0 / 0.4));
+  --shadow-1: none;
+  --shadow-2: 0 2px 8px light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.5));
 
   /* ── Motion ──────────────────────────────────────────────────────────── */
   --duration-fast: 120ms;
@@ -163,13 +163,19 @@
 
 /* Transcript font size preference (Settings). Set via data attribute, never inline style. */
 :root[data-transcript-size='sm'] {
-  --transcript-font-size: 0.9375rem;
+  --transcript-font-size: 0.875rem;
 }
 :root[data-transcript-size='lg'] {
-  --transcript-font-size: 1.25rem;
+  --transcript-font-size: 1.125rem;
 }
 :root[data-transcript-size='xl'] {
-  --transcript-font-size: 1.4375rem;
+  --transcript-font-size: 1.3125rem;
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --size-control: 2.25rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

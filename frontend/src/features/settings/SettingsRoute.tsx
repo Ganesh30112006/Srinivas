@@ -27,8 +27,8 @@ export function SettingsRoute() {
         {user !== null && <ProfileSection user={user} />}
         <PasswordSection />
 
-        <p className={styles.hint}>{t('deviceNote')}</p>
         <Section title={t('appearance.heading')} headingId="appearance">
+          <p className={styles.hint}>{t('deviceNote')}</p>
           <fieldset className={styles.choices}>
             <legend className={styles.legend}>{t('appearance.theme')}</legend>
             {THEMES.map((theme) => (
@@ -77,7 +77,6 @@ export function SettingsRoute() {
           />
           <Checkbox
             label={t('transcript.announce')}
-            hint={t('transcript.announceHint')}
             checked={prefs.announce}
             onChange={(e) => {
               prefs.set('announce', e.target.checked);
@@ -95,7 +94,6 @@ export function SettingsRoute() {
           />
           <Checkbox
             label={t('language.showTransliteration')}
-            hint={t('language.showTransliterationHint')}
             checked={prefs.showTransliteration}
             onChange={(e) => {
               prefs.set('showTransliteration', e.target.checked);
