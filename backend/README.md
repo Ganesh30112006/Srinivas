@@ -34,7 +34,7 @@ Development needs a PostgreSQL 16 with `pgvector`, and a Redis:
 ## Tests
 
 ```bash
-python -m pytest -q          # 57 tests
+python -m pytest -q          # 86 tests
 ruff check . && ruff format --check . && mypy app worker tools
 ```
 
@@ -54,6 +54,8 @@ ruff check . && ruff format --check . && mypy app worker tools
 | `test_notes_worker.py` | Validated artifacts with model and prompt version, embeddings, AI outage → `failed` artifacts but a completed lecture, live key terms, JSON extraction with retry, lost jobs re-queued on start |
 | `test_register_device.py` | `tools.register_device`: only the token hash is stored, lecturer assignment, refusals |
 | `test_master_plan.py` | Web Start/Pause/Resume/Stop and the device button, monitoring, transcript edits, flashcards/revision, settings, device settings, audio retention |
+| `test_ai_client.py` | Embedder selection: Cohere by default, Titan (at the database's 1024 dimensions) when configured |
+| `test_errors.py` | Every failure is `{code, message}` with a plain message: crash → 500, database/Redis down → 503 (a socket closes with 1011), readable validation errors |
 | `test_events.py` | The shared Redis client lets blocking reads finish (redis-py 8 defaults to a 5 s socket timeout, which crashed the notes worker) |
 
 ## Device simulator

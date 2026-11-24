@@ -72,6 +72,8 @@ async def update_user(user_id: uuid.UUID, body: schemas.UserUpdate, admin: Admin
         raise not_found("user")
     if user.id == admin.id and body.active is False:
         raise ApiError(409, "cannot_disable_self", "You cannot disable your own account.")
+    if user.id == admin.id and body.role is not None and body.role != "admin":
+        raise ApiError(409, "cannot_demote_self", "You cannot remove your own admin role.")
     if body.full_name is not None:
         user.name = body.full_name.strip()
     if body.role is not None:

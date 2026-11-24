@@ -1,0 +1,25 @@
+[Unit]
+Description=Smart Classroom audio retention (deletes lecture audio after AUDIO_RETENTION_DAYS)
+After=postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+User=smartclass
+Group=smartclass
+WorkingDirectory=/opt/smartclass/backend
+EnvironmentFile=/etc/smartclass/backend.env
+ExecStart=/opt/smartclass/backend/.venv/bin/python -m tools.retention
+Nice=10
+IOSchedulingClass=idle
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/smartclass
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true

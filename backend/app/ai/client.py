@@ -14,8 +14,10 @@ from typing import Any, Literal, Protocol, TypeVar
 from pydantic import BaseModel, ValidationError
 
 from app.config import get_settings
+from app.logs import get_logger
 
 T = TypeVar("T", bound=BaseModel)
+log = get_logger("ai")
 
 
 class AiUnavailableError(RuntimeError):
@@ -51,7 +53,9 @@ async def generate_validated(call: Any, system: str, user: str, schema: type[T])
     for attempt in range(2):
         raw: str = await call(system, prompt)
         try:
-            return schema.model_validate_json(extract_json(raw))
+            # strict=False: models often put raw line breaks or tabs inside JSON strings (seen with
+            # Amazon Nova on a Telugu lecture: notes with real newlines). They are unambiguous there.
+            return schema.model_validate(json.loads(extract_json(raw), strict=False))
         except (ValidationError, ValueError) as exc:
             if attempt == 1:
                 raise AiUnavailableError(f"model output failed validation: {exc}") from exc
@@ -124,13 +128,80 @@ class BedrockCohereEmbedder:
         return out
 
 
+class BedrockTitanEmbedder:
+    """amazon.titan-embed-text-v2:0 at 1024 dims, one text per call. For accounts where the Cohere
+    model is unavailable (it is sold through AWS Marketplace); Cohere is preferred for Hindi/Telugu."""
+
+    def __init__(self, model_id: str, region: str, dims: int) -> None:
+        import boto3
+
+        self.model_name = model_id
+        self.dims = dims
+        self._client = boto3.client("bedrock-runtime", region_name=region)
+
+    def _body(self, text: str) -> str:
+        return json.dumps({"inputText": text[:20_000], "dimensions": self.dims, "normalize": True})
+
+    async def embed(self, texts: list[str], kind: Literal["document", "query"]) -> list[list[float]]:
+        def invoke(text: str) -> list[float]:
+            response = self._client.invoke_model(
+                modelId=self.model_name,
+                body=self._body(text),
+                contentType="application/json",
+                accept="application/json",
+            )
+            embedding: list[float] = json.loads(response["body"].read())["embedding"]
+            return embedding
+
+        try:
+            return [await asyncio.to_thread(invoke, text) for text in texts]
+        except Exception as exc:
+            raise AiUnavailableError(f"Bedrock embedding failed: {exc}") from exc
+
+
+class FallbackLlm:
+    """Tries several models in order, e.g. a Claude model first and an Amazon Nova model second.
+
+    A model that is refused (not enabled, no AWS Marketplace subscription, throttled) or whose reply
+    still fails validation after its retry hands the request to the next one, so lectures still get
+    notes while the preferred model is unavailable. `model_name` is the model that answered last,
+    which is what the notes worker records with each artifact.
+    """
+
+    def __init__(self, llms: list[LlmClient]) -> None:
+        if not llms:
+            raise AiUnavailableError("BEDROCK_LLM_MODEL_ID is not set")
+        self._llms = llms
+        self.model_name = llms[0].model_name
+
+    async def generate(self, system: str, user: str, schema: type[T]) -> T:
+        failures: list[str] = []
+        for llm in self._llms:
+            try:
+                out = await llm.generate(system, user, schema)
+            except AiUnavailableError as exc:
+                failures.append(f"{llm.model_name}: {exc}")
+                log.warning("llm_unavailable_trying_next", model=llm.model_name, error=str(exc)[:300])
+                continue
+            self.model_name = llm.model_name
+            return out
+        raise AiUnavailableError("; ".join(failures))
+
+
 @lru_cache
 def get_llm() -> LlmClient:
+    """BEDROCK_LLM_MODEL_ID may list several models, best first, separated by commas."""
     settings = get_settings()
-    return BedrockLlm(settings.bedrock_llm_model_id, settings.aws_region)
+    ids = [m.strip() for m in settings.bedrock_llm_model_id.split(",") if m.strip()]
+    if len(ids) <= 1:
+        return BedrockLlm(ids[0] if ids else "", settings.aws_region)
+    return FallbackLlm([BedrockLlm(m, settings.aws_region) for m in ids])
 
 
 @lru_cache
 def get_embedder() -> Embedder:
     settings = get_settings()
-    return BedrockCohereEmbedder(settings.bedrock_embed_model_id, settings.aws_region)
+    model_id = settings.bedrock_embed_model_id
+    if model_id.startswith("amazon.titan-embed"):
+        return BedrockTitanEmbedder(model_id, settings.aws_region, settings.embedding_dims)
+    return BedrockCohereEmbedder(model_id, settings.aws_region)

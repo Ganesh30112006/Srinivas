@@ -4,6 +4,7 @@ session, D13)."""
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 
 from fastapi import APIRouter, Request, Response
 from sqlalchemy import delete, func, select
@@ -17,6 +18,11 @@ from app.db.models import AuditLog, User, WebSession
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 LOGIN_LIMIT = 10  # attempts per minute per address+email
+
+
+@lru_cache
+def _dummy_hash() -> str:
+    return hash_password(new_token())
 
 
 def user_view(user: User) -> schemas.User:
@@ -42,7 +48,10 @@ async def login(
     if attempts > LOGIN_LIMIT:
         raise ApiError(429, "too_many_attempts", "Too many sign-in attempts. Wait a minute and try again.")
     user = (await db.execute(select(User).where(func.lower(User.email) == email))).scalars().first()
-    if user is None or not verify_password(user.password_hash, body.password):
+    # Always run the (deliberately slow) hash check, so the response time doesn't reveal whether
+    # an account exists for this email.
+    valid = verify_password(user.password_hash if user else _dummy_hash(), body.password)
+    if user is None or not valid:
         raise ApiError(401, "invalid_credentials", "Email or password is incorrect.")
     if not user.active:
         raise ApiError(401, "account_disabled", "This account has been disabled.")

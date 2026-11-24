@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     bedrock_embed_model_id: str = "cohere.embed-multilingual-v3"
     embedding_dims: int = 1024
     live_key_terms_interval_s: int = 180
-    prompt_version: str = "2026-11-19.1"
+    prompt_version: str = "2026-11-24.1"
 
     # Data retention (master plan §25, DPDP Act 2023): delete lecture audio this many days after the
     # lecture ends. Transcripts and notes are kept. 0 keeps audio forever.

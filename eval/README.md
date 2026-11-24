@@ -51,6 +51,22 @@ The output is a table per model and language, and a JSON file in `eval/results/`
 
 **How to choose:** pick the smallest model whose WER is acceptable and whose live RTF (`--beam 1`) is at most about 0.3 for each classroom you expect to record at the same time on that machine.
 
+### Synthetic test lectures (before real recordings exist)
+
+`synthetic/` holds four short lecture texts (CPU scheduling, deadlocks, TCP congestion control,
+normalisation) and a Windows-only generator. It speaks each text with four built-in voices (US
+English: Zira, David; Indian English: Heera, Ravi), converts them to 16 kHz mono WAV, and writes
+the manifest above plus three longer lectures for the outage tests (`data/rec_short.wav`,
+`rec_medium.wav`, `rec_long.wav`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File eval/synthetic/make_lectures.ps1
+```
+
+Synthetic speech is clean, evenly paced and has no room noise, so its error rates are a lower
+bound. Report them as synthetic, never as classroom results. Windows has no Telugu or Hindi voices,
+so those languages still need real recordings.
+
 ## 2. Latency
 
 During a lecture, keep one browser on the live page: it sends `render.ack`, which supplies the browser-side stages. Then run:

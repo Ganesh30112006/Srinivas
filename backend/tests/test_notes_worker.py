@@ -256,6 +256,30 @@ def test_extract_json_and_validation_retry() -> None:
         run(generate_validated(always_bad, "s", "u", LiveKeyTerms))
 
 
+def test_key_terms_merge_plurals_and_topic_count_follows_lecture_length() -> None:
+    # Seen with Amazon Nova on a 1-minute Hindi lecture: 6 sections and both "Page" and "Pages".
+    from app.ai.prompts import topic_count
+    from worker.notes.pipeline import term_key
+
+    assert term_key("Pages") == term_key("page") == "page"
+    assert term_key("Processes") == term_key("Process") == "process"
+    assert term_key("Page Tables") == "page table"
+    assert term_key("Queries") == "query"
+    assert term_key("TLB") == "tlb" and term_key("Mutual Exclusion") == "mutual exclusion"
+    assert term_key("Access") == "access"
+    assert [topic_count(m * 60_000) for m in (1, 10, 50, 120)] == [1, 2, 10, 10]
+
+
+def test_raw_line_breaks_inside_json_strings_are_accepted() -> None:
+    """Seen with Amazon Nova on a Telugu lecture: a definition with a real newline in the string."""
+
+    async def call(system: str, user: str) -> str:
+        return '{"terms": [{"term": "deadlock", "definition": "Processes wait\n\tfor each other."}]}'
+
+    out = run(generate_validated(call, "s", "u", LiveKeyTerms))
+    assert out.terms[0].definition == "Processes wait\n\tfor each other."
+
+
 def test_requeue_processing_lectures_on_start(sessions_factory, redis_server, sync_redis) -> None:  # type: ignore[no-untyped-def]
     """A job lost mid-run (BLPOP already removed it) is re-queued once; queued ones are not doubled."""
     from app.events import NOTES_JOBS
@@ -288,3 +312,22 @@ def test_requeue_processing_lectures_on_start(sessions_factory, redis_server, sy
     assert run(requeue()) == 1
     jobs = sorted(json.loads(j)["lecture_id"] for j in sync_redis.lrange(NOTES_JOBS, 0, -1))
     assert jobs == sorted([str(lost), str(queued)])
+
+
+def test_a_heading_repeated_at_the_top_of_a_section_body_is_removed() -> None:
+    # Seen with Amazon Nova: body "# Introduction to CPU Scheduling\n\nIn a ..." under that heading.
+    from worker.notes.pipeline import strip_leading_heading
+
+    assert strip_leading_heading("# Intro\n\nIn a system ...") == "In a system ..."
+    assert strip_leading_heading("  ## Intro\nText") == "Text"
+    kept = "Text first.\n\n### Detail\nMore"
+    assert strip_leading_heading(kept) == kept
+
+
+def test_overlapping_topics_are_made_contiguous() -> None:
+    # Seen with Amazon Nova: two topics both covered the "metrics" line, so it was written up twice.
+    from worker.notes.pipeline import topic_ranges
+
+    spans = topic_ranges([("Intro", 0, 2), ("Components", 3, 5), ("Metrics", 4, 5), ("FCFS", 6, 9)], 8)
+    assert spans == [("Intro", 0, 2), ("Components", 3, 5), ("FCFS", 6, 7)]  # Metrics was inside Components
+    assert topic_ranges([("Backwards", 5, 2), ("Late", 1, 3)], 10) == [("Late", 1, 3), ("Backwards", 4, 5)]

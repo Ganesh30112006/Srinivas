@@ -23,6 +23,7 @@ Everything runs on one Ubuntu 24.04 EC2 instance as system packages and systemd 
 | `env/backend.env.example` | `/etc/smartclass/backend.env` (shared by all four services) |
 | `systemd/smartclass-{api,gateway,asr,notes}.service` | `/etc/systemd/system/` |
 | `systemd/smartclass-backup.{service,timer}` | Nightly `pg_dump` at 02:30 |
+| `systemd/smartclass-retention.{service,timer}` | Daily at 03:30: deletes lecture audio older than `AUDIO_RETENTION_DAYS` (`python -m tools.retention`; 0 keeps audio forever) |
 | `backup/pg-backup.sh` | `/usr/local/bin/smartclass-backup` |
 | `caddy/Caddyfile` | `/etc/caddy/Caddyfile` (TLS from Let's Encrypt, security headers, CSP) |
 
@@ -85,6 +86,7 @@ The deploy script backs up the database before migrating. It then restarts the w
 | Logs (JSON) | `journalctl -u smartclass-asr -f` |
 | Health | `curl -s https://<host>/api/health` → `{"status":"ok","database":true,"redis":true}` |
 | Manual backup | `sudo systemctl start smartclass-backup` |
+| Run audio retention now | `sudo systemctl start smartclass-retention`, then `journalctl -u smartclass-retention -n 20` lists what was deleted |
 | Restore | `sudo -u postgres pg_restore --clean --if-exists -d smartclass /var/backups/smartclass/<file>.dump` |
 | ASR backlog | `redis-cli SCARD asr:pending` (should stay near the number of live classrooms) |
 
@@ -112,5 +114,6 @@ On a `g5`/`g6` instance, install the NVIDIA driver plus CUDA 12 and cuDNN 9, the
 | Caddy has no certificate | DNS must point to this instance, and ports 80/443 must be open: `journalctl -u caddy` |
 | Devices connect then drop with 4401 | The token is wrong, or the device was deactivated: see the gateway logs |
 | Notes stay "failed" | `BEDROCK_LLM_MODEL_ID` is empty, model access is not enabled, or the instance role is missing `bedrock:InvokeModel` |
+| Notes say they came from the fallback model (e.g. Nova) | `journalctl -u smartclass-notes` shows `llm_unavailable_trying_next` with the reason. `INVALID_PAYMENT_INSTRUMENT` means the AWS account needs a valid payment method for AWS Marketplace models (Claude, Cohere); `not available for this account` means that model is not enabled |
 | PDF export returns 501 | The WeasyPrint libraries are missing: re-run `setup.sh`, which installs Pango/HarfBuzz and the Noto fonts |
 | Live transcript lags further and further | The ASR CPU is saturated: use a smaller `ASR_MODEL`, a bigger instance, or a GPU |

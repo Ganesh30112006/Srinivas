@@ -455,3 +455,40 @@ def test_retention_deletes_old_audio_but_keeps_the_transcript(sessions_factory, 
     )
     chunks, segments, purged_at = run(db_do(sessions_factory, lambda db: counts(db, recent)))
     assert (chunks, segments, purged_at) == (1, 1, None)
+
+
+def test_admin_cannot_lock_themselves_out(api) -> None:  # type: ignore[no-untyped-def]
+    client, _, _ = api
+    admin = login(client, "admin")
+    me = client.get("/auth/me", headers=admin).json()["id"]
+    demote = client.patch(f"/users/{me}", json={"role": "student"}, headers=admin)
+    assert demote.status_code == 409 and demote.json()["code"] == "cannot_demote_self"
+    disable = client.patch(f"/users/{me}", json={"active": False}, headers=admin)
+    assert disable.status_code == 409 and disable.json()["code"] == "cannot_disable_self"
+    assert (
+        client.patch(f"/users/{me}", json={"full_name": "  Meena  "}, headers=admin).json()["full_name"]
+        == "Meena"
+    )
+    blank = client.patch(f"/users/{me}", json={"full_name": "   "}, headers=admin)
+    assert blank.status_code == 422  # whitespace-only names are rejected, not saved empty
+
+
+def test_device_lecturer_lists_are_validated(api) -> None:  # type: ignore[no-untyped-def]
+    """Duplicates or unknown/student ids used to fail in the database (500)."""
+    client, seed, _ = api
+    admin = login(client, "admin")
+    twice = client.post(
+        "/devices",
+        json={
+            "name": "Desk mic",
+            "room": "Lab 1",
+            "serial": "AABBCCDDEEFF",
+            "lecturer_ids": [str(seed.lecturer_id)] * 2,
+        },
+        headers=admin,
+    )
+    assert twice.status_code == 201 and twice.json()["device"]["lecturer_ids"] == [str(seed.lecturer_id)]
+    device_id = twice.json()["device"]["id"]
+    for bad in (str(uuid.uuid4()), str(seed.student_id)):
+        response = client.put(f"/devices/{device_id}/lecturers", json={"lecturer_ids": [bad]}, headers=admin)
+        assert response.status_code == 422 and response.json()["code"] == "unknown_lecturer"

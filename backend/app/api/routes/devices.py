@@ -92,6 +92,23 @@ async def _visible_devices(db: AsyncSession, user: User) -> list[Device]:
     return list((await db.execute(query)).scalars())
 
 
+async def _lecturer_ids(db: AsyncSession, ids: list[uuid.UUID]) -> list[uuid.UUID]:
+    """De-duplicated ids, all of which must be lecturers (or admins): an unknown or student id is
+    a 422, not a database error."""
+    unique = list(dict.fromkeys(ids))
+    if unique:
+        found = set(
+            (
+                await db.execute(
+                    select(User.id).where(User.id.in_(unique), User.role.in_([Role.lecturer, Role.admin]))
+                )
+            ).scalars()
+        )
+        if len(found) != len(unique):
+            raise ApiError(422, "unknown_lecturer", "Choose lecturers from the list.")
+    return unique
+
+
 @router.get("", response_model=list[schemas.Device], responses=E)
 async def list_devices(user: LecturerUser, db: Db) -> list[schemas.Device]:
     return await device_views(db, await _visible_devices(db, user))
@@ -109,13 +126,14 @@ async def get_device(device_id: uuid.UUID, user: LecturerUser, db: Db) -> schema
 async def register_device(body: schemas.DeviceCreate, admin: AdminUser, db: Db) -> schemas.DeviceRegistered:
     if (await db.execute(select(Device).where(Device.serial == body.serial))).scalars().first():
         raise ApiError(409, "device_exists", "A device with this serial is already registered.")
+    lecturer_ids = await _lecturer_ids(db, body.lecturer_ids)
     token = new_token(24)
     device = Device(
         name=body.name.strip(), room=body.room.strip(), serial=body.serial, token_hash=token_hash(token)
     )
     db.add(device)
     await db.flush()
-    for user_id in body.lecturer_ids:
+    for user_id in lecturer_ids:
         db.add(DeviceLecturer(device_id=device.id, user_id=user_id))
     db.add(AuditLog(actor_id=admin.id, action="device.register", target=body.serial))
     await db.commit()
@@ -129,8 +147,9 @@ async def assign_lecturers(
     device = await db.get(Device, device_id)
     if device is None:
         raise not_found("device")
+    lecturer_ids = await _lecturer_ids(db, body.lecturer_ids)
     await db.execute(delete(DeviceLecturer).where(DeviceLecturer.device_id == device_id))
-    for user_id in dict.fromkeys(body.lecturer_ids):
+    for user_id in lecturer_ids:
         db.add(DeviceLecturer(device_id=device_id, user_id=user_id))
     db.add(AuditLog(actor_id=admin.id, action="device.assign", target=str(device_id)))
     await db.commit()

@@ -55,8 +55,11 @@ async def live_socket(ws: WebSocket, lecture_id: uuid.UUID) -> None:
             return
     try:
         sub = Subscribe.model_validate_json(await asyncio.wait_for(ws.receive_text(), SUBSCRIBE_TIMEOUT_S))
-    except (TimeoutError, ValidationError, WebSocketDisconnect):
-        with contextlib.suppress(RuntimeError):
+    except WebSocketDisconnect:
+        return  # the browser left before subscribing (e.g. navigated away): nothing to close
+    except (TimeoutError, ValidationError):
+        # The socket may have dropped meanwhile; closing it then raises (uvicorn ClientDisconnected).
+        with contextlib.suppress(Exception):
             await ws.close(4400)
         return
 

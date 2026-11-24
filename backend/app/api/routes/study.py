@@ -195,7 +195,39 @@ async def get_questions(lecture_id: uuid.UUID, user: CurrentUser, db: Db) -> sch
     return schemas.QuestionSet(lecture_id=lecture.id, **artifact.content)
 
 
+async def _with_neighbours(
+    db: AsyncSession, lecture: Lecture, hits: list[TranscriptSegment]
+) -> list[TranscriptSegment]:
+    """Adds the line before and after each hit, in time order. Lecturers often define a term in
+    the sentence next to the one that names it ("... every short process wait." / "This is called
+    the convoy effect."), and without it the model answered from the wrong lines."""
+    if not hits:
+        return []
+    order = [
+        row[0]
+        for row in await db.execute(
+            select(TranscriptSegment.id)
+            .where(TranscriptSegment.lecture_id == lecture.id)
+            .order_by(TranscriptSegment.start_ms, TranscriptSegment.id)
+        )
+    ]
+    position = {segment_id: i for i, segment_id in enumerate(order)}
+    wanted = {
+        order[j]
+        for s in hits
+        if s.id in position
+        for j in range(position[s.id] - 1, position[s.id] + 2)
+        if 0 <= j < len(order)
+    }
+    rows = await db.execute(select(TranscriptSegment).where(TranscriptSegment.id.in_(wanted)))
+    return sorted(rows.scalars(), key=lambda s: (s.start_ms, str(s.id)))
+
+
 async def _retrieve(db: AsyncSession, ctx: Any, lecture: Lecture, question: str) -> list[TranscriptSegment]:
+    return await _with_neighbours(db, lecture, await _search(db, ctx, lecture, question))
+
+
+async def _search(db: AsyncSession, ctx: Any, lecture: Lecture, question: str) -> list[TranscriptSegment]:
     has_embeddings = (
         await db.execute(
             select(func.count())
@@ -266,8 +298,12 @@ async def ask_lecture(
             raise ApiError(
                 503, "ai_unavailable", "The answering service is unavailable. Try again later."
             ) from exc
-    retrieved = {str(s.id) for s in segments}
-    cited = [sid for sid in answer.cited_segment_ids if sid in retrieved]  # never trust ids the model invents
+    # Lines are cited by index (as the prompt asks); a segment id is accepted too. Anything else the
+    # model invents is dropped.
+    by_ref = {str(i): str(s.id) for i, s in enumerate(segments)} | {str(s.id): str(s.id) for s in segments}
+    cited = list(
+        dict.fromkeys(by_ref[ref.strip()] for ref in answer.cited_segment_ids if ref.strip() in by_ref)
+    )
     if not answer.covered:
         cited = []
     db.add(

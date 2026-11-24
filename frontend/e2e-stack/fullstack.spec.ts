@@ -95,6 +95,7 @@ function startSimulator(lectureId: string): { done: Promise<number>; child: Chil
   return { done, child };
 }
 
+const REAL_AI = process.env.STACK_REAL_AI === '1';
 const TITLE = `CPU scheduling ${String(Date.now())}`;
 let lectureId = '';
 
@@ -153,8 +154,12 @@ test('the finished lecture has a searchable transcript and a clear notes state',
     )
     .toBe(true);
 
+  // The transcript is a virtual list: only rows near the viewport exist in the DOM. A tall window
+  // renders the whole lecture, so the checks below read every line, not just the first screen.
+  await page.setViewportSize({ width: 1280, height: 6000 });
   const rows = page.locator('[data-segment-id]');
   await expect(rows.first()).toBeVisible();
+  await expect(rows.last()).toContainText(/finish/i);
   // The spoken text only (not the language tag or a transliteration line).
   const lines = await rows.locator('p[lang]:not([lang$="-Latn"])').allTextContents();
   const text = lines.join(' ');
@@ -179,9 +184,11 @@ test('the finished lecture has a searchable transcript and a clear notes state',
   expect(new Set(ids).size).toBe(ids.length);
   await page.screenshot({ path: 'test-results/stack-transcript.png', fullPage: true });
 
-  await page.getByRole('tab', { name: 'Notes', exact: true }).click();
-  // Bedrock is unreachable in this stack: say so, rather than "still being generated".
-  await expect(page.getByText("This couldn't be generated")).toBeVisible();
+  if (!REAL_AI) {
+    await page.getByRole('tab', { name: 'Notes', exact: true }).click();
+    // Bedrock is unreachable in this stack: say so, rather than "still being generated".
+    await expect(page.getByText("This couldn't be generated")).toBeVisible();
+  }
 
   await page.goto('/search?q=convoy');
   await expect(page.getByRole('link', { name: TITLE })).toBeVisible();
@@ -189,6 +196,53 @@ test('the finished lecture has a searchable transcript and a clear notes state',
 
   await page.goto('/lectures');
   await expect(page.getByText(TITLE)).toBeVisible();
+  expect(problems).toEqual([]);
+});
+
+test('with real AI, the lecturer publishes study material and a student uses it', async ({
+  page,
+}) => {
+  test.skip(!REAL_AI, 'Set STACK_REAL_AI=1 with Bedrock configured for the API and notes worker.');
+  test.setTimeout(300_000);
+  expect(lectureId).not.toBe('');
+  const problems = watchForProblems(page);
+
+  // The notes worker generates a draft; the lecturer reviews and publishes it.
+  await signIn(page, 'lecturer', `/lectures/${lectureId}/notes`);
+  const publish = page.getByRole('button', { name: 'Publish', exact: true });
+  await expect
+    .poll(
+      async () => {
+        await page.reload();
+        await expect(page.getByRole('heading', { name: TITLE })).toBeVisible();
+        return publish.isVisible();
+      },
+      { timeout: 240_000, intervals: [5_000] },
+    )
+    .toBe(true);
+  await expect(page.locator('h2, h3').filter({ hasText: /\w/ }).first()).toBeVisible();
+  await publish.click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Publish' }).click();
+  await expect(page.getByText('Notes published. Students can now see them.')).toBeVisible();
+  await page.screenshot({ path: 'test-results/stack-notes.png', fullPage: true });
+
+  await page.context().clearCookies();
+  await signIn(page, 'student', `/lectures/${lectureId}/notes`);
+  await expect(page.getByText(/scheduling/i).first()).toBeVisible();
+  for (const tab of ['Summary', 'Key terms', 'Revision', 'Questions']) {
+    await page.getByRole('tab', { name: tab, exact: true }).click();
+    await expect(page.getByText(/isn't ready|aren't ready|couldn't be generated/)).toHaveCount(0);
+  }
+  await page.getByRole('tab', { name: 'Flashcards', exact: true }).click();
+  await page.getByRole('button', { name: 'Show answer' }).click();
+
+  // Ask answers from the transcript, with jump links to the lines it used.
+  await page.getByRole('tab', { name: 'Ask', exact: true }).click();
+  await page.getByLabel('Your question').fill('What is the convoy effect?');
+  await page.getByRole('button', { name: 'Ask', exact: true }).click();
+  await expect(page.getByText('From the lecture')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole('link', { name: /Jump to \d+:\d{2}/ }).first()).toBeVisible();
+  await page.screenshot({ path: 'test-results/stack-ask.png', fullPage: true });
   expect(problems).toEqual([]);
 });
 

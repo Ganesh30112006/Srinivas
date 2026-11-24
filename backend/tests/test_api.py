@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -39,9 +40,11 @@ class FakeLlm:
 
     def __init__(self) -> None:
         self.cited: list[str] = []
+        self.prompts: list[str] = []
 
     async def generate(self, system: str, user: str, schema: type[BaseModel]) -> Any:
         assert schema is QaAnswer
+        self.prompts.append(user)
         return QaAnswer(
             covered=True,
             answer="A small quantum causes many context switches.",
@@ -258,6 +261,20 @@ def test_ask_cites_only_retrieved_segments(api, sessions_factory) -> None:  # ty
         f"/lectures/{lecture}/ask", json={"question": "When is the exam?"}, headers=csrf
     ).json()
     assert none == {"answer": "This is not covered in this lecture.", "cited_segment_ids": []}
+
+
+def test_ask_accepts_citations_by_line_index(api, sessions_factory) -> None:  # type: ignore[no-untyped-def]
+    """Seen with Amazon Nova: it cited lines as "3", "5" (the index), and every link was dropped."""
+    client, seed, llm = api
+    lecture = run(add_lecture(sessions_factory, seed, consent=True, segments=SEGMENTS))
+    csrf = login(client, "student")
+    llm.cited = ["1", " 1 ", "99"]  # a valid index (twice) and one out of range
+    answer = client.post(
+        f"/lectures/{lecture}/ask", json={"question": "Why is a small quantum bad?"}, headers=csrf
+    ).json()
+    line_1 = re.search(r"^\[1\|([0-9a-f-]{36})\|", llm.prompts[-1], re.MULTILINE)
+    assert line_1 is not None
+    assert answer["cited_segment_ids"] == [line_1.group(1)]
 
 
 def test_search_groups_and_highlights_code_points(api, sessions_factory) -> None:  # type: ignore[no-untyped-def]

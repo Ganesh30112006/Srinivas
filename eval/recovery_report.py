@@ -9,7 +9,8 @@ Procedure (no hardware needed):
     .venv/bin/python ../eval/recovery_report.py --lecture-id <uuid printed by the simulator/UI>
 
 The exit code is 0 only if seqs 0..last_seq are all present exactly once, and every gap is
-filled. With real hardware, pull the Ethernet/Wi-Fi uplink for the outage instead.
+filled (its audio arrived) or done (it has also been transcribed). With real hardware, pull the
+Ethernet/Wi-Fi uplink for the outage instead.
 """
 
 from __future__ import annotations
@@ -96,7 +97,8 @@ def build_report(data: Loaded) -> dict[str, object]:
         "chunks": result.as_dict(),
         "gaps": gaps,
         "live_capture_to_receive": live.as_dict() if live else None,
-        "passed": result.complete and all(g.state == GapState.filled for g in data.gaps),
+        # `done` comes after `filled`: the backfilled audio was also transcribed and published.
+        "passed": result.complete and all(g.state in (GapState.filled, GapState.done) for g in data.gaps),
     }
 
 

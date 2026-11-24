@@ -5,14 +5,17 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
 
 Role = Literal["lecturer", "student", "admin"]
 LanguageCode = Literal["en", "te", "hi"]
 LectureStatus = Literal["scheduled", "recording", "processing", "completed", "failed"]
 ExportFormat = Literal["pdf", "txt", "md"]
+# User-typed text: surrounding spaces are removed before the length checks, so "   " is rejected
+# instead of being saved as an empty title or transcript line. (Never used for passwords.)
+Trimmed = Annotated[str, StringConstraints(strip_whitespace=True)]
 
 
 class Model(BaseModel):
@@ -39,7 +42,7 @@ class LoginRequest(Model):
 
 class UserCreate(Model):
     email: EmailStr
-    full_name: str = Field(min_length=1, max_length=120)
+    full_name: Trimmed = Field(min_length=1, max_length=120)
     role: Role
     password: str = Field(
         min_length=8, max_length=200, description="Initial password; the user changes it later."
@@ -47,7 +50,7 @@ class UserCreate(Model):
 
 
 class UserUpdate(Model):
-    full_name: str | None = Field(default=None, min_length=1, max_length=120)
+    full_name: Trimmed | None = Field(default=None, min_length=1, max_length=120)
     role: Role | None = None
     active: bool | None = None
 
@@ -59,8 +62,8 @@ class Subject(Model):
 
 
 class SubjectCreate(Model):
-    code: str = Field(min_length=2, max_length=16)
-    name: str = Field(min_length=2, max_length=120)
+    code: Trimmed = Field(min_length=2, max_length=16)
+    name: Trimmed = Field(min_length=2, max_length=120)
 
 
 class SubjectRef(Model):
@@ -101,7 +104,7 @@ class LecturePage(Model):
 
 class LectureCreate(Model):
     subject_id: uuid.UUID
-    title: str = Field(min_length=3, max_length=160)
+    title: Trimmed = Field(min_length=3, max_length=160)
     language: LanguageCode
     device_id: uuid.UUID
     consent_confirmed: Literal[True] = Field(
@@ -110,7 +113,7 @@ class LectureCreate(Model):
 
 
 class LectureUpdate(Model):
-    title: str | None = Field(default=None, min_length=3, max_length=160)
+    title: Trimmed | None = Field(default=None, min_length=3, max_length=160)
     subject_id: uuid.UUID | None = None
     consent_confirmed: Literal[True] | None = None
 
@@ -128,7 +131,7 @@ class TranscriptSegment(Model):
 
 
 class SegmentUpdate(Model):
-    text: str = Field(min_length=1, max_length=2000)
+    text: Trimmed = Field(min_length=1, max_length=2000)
 
 
 class LectureControl(Model):
@@ -171,7 +174,7 @@ class Notes(Model):
 
 class NoteSectionInput(Model):
     id: str | None = Field(description="null for a new section.")
-    heading: str = Field(min_length=1, max_length=160)
+    heading: Trimmed = Field(min_length=1, max_length=160)
     body_markdown: str = Field(max_length=20000)
 
 
@@ -241,7 +244,7 @@ class RevisionNotes(Model):
 
 
 class AskRequest(Model):
-    question: str = Field(min_length=3, max_length=500)
+    question: Trimmed = Field(min_length=3, max_length=500)
 
 
 class AskResponse(Model):
@@ -303,15 +306,15 @@ class Device(Model):
 
 
 class DeviceUpdate(Model):
-    name: str | None = Field(default=None, min_length=2, max_length=60)
-    room: str | None = Field(default=None, min_length=1, max_length=60)
+    name: Trimmed | None = Field(default=None, min_length=2, max_length=60)
+    room: Trimmed | None = Field(default=None, min_length=1, max_length=60)
     gain: float | None = Field(default=None, ge=0.5, le=16, description="Applied on the next connection.")
     vad_enabled: bool | None = None
 
 
 class DeviceCreate(Model):
-    name: str = Field(min_length=2, max_length=60)
-    room: str = Field(min_length=1, max_length=60)
+    name: Trimmed = Field(min_length=2, max_length=60)
+    room: Trimmed = Field(min_length=1, max_length=60)
     serial: str = Field(pattern=r"^[0-9A-F]{12}$")
     lecturer_ids: list[uuid.UUID] = []
 
@@ -332,7 +335,7 @@ class Health(Model):
 
 
 class ProfileUpdate(Model):
-    full_name: str = Field(min_length=1, max_length=120)
+    full_name: Trimmed = Field(min_length=1, max_length=120)
 
 
 class PasswordChange(Model):

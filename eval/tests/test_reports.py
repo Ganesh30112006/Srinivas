@@ -30,6 +30,14 @@ def test_recovery_report_passes_when_complete_and_gaps_filled() -> None:
     assert isinstance(live, dict) and live["n"] == 4 and live["max_ms"] == 100
 
 
+def test_recovery_report_passes_when_the_gap_was_also_transcribed() -> None:
+    """Found on the first real-stack run: a gap the ASR worker had finished ("done") failed the report."""
+    lecture = _lecture(last_seq=3)
+    chunks = [(s, 0, 0) for s in range(4)]
+    gap = LectureGap(lecture_id=lecture.id, gap_id="g1", start_seq=1, end_seq=2, state=GapState.done)
+    assert build_report(Loaded(lecture, chunks, [gap]))["passed"] is True
+
+
 def test_recovery_report_fails_on_missing_chunk_or_open_gap() -> None:
     lecture = _lecture(last_seq=3)
     chunks = [(s, 0, 0) for s in (0, 1, 3)]

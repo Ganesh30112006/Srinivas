@@ -6,7 +6,7 @@
 #
 # Installs PostgreSQL 16 + pgvector, Redis, Caddy, Python venv, WeasyPrint system libraries,
 # Noto fonts and Node.js 22; creates the `smartclass` service user, directories, database and
-# role; installs systemd units, the Caddyfile and the nightly backup timer. Safe to re-run.
+# role; installs systemd units, the Caddyfile and the nightly backup and audio-retention timers. Safe to re-run.
 set -euo pipefail
 
 SITE_ADDRESS="${SITE_ADDRESS:?set SITE_ADDRESS to the public hostname, e.g. lecture.college.edu}"
@@ -154,7 +154,7 @@ install -m 0644 "${APP_DIR}"/infra/systemd/*.service "${APP_DIR}"/infra/systemd/
 install -m 0755 "${APP_DIR}/infra/backup/pg-backup.sh" /usr/local/bin/smartclass-backup
 systemctl daemon-reload
 systemctl enable --now smartclass-api smartclass-gateway smartclass-asr smartclass-notes
-systemctl enable --now smartclass-backup.timer
+systemctl enable --now smartclass-backup.timer smartclass-retention.timer
 
 echo "==> Caddy"
 sed "s#__SITE_ADDRESS__#${SITE_ADDRESS}#g" "${APP_DIR}/infra/caddy/Caddyfile" > /etc/caddy/Caddyfile

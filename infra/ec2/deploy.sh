@@ -52,6 +52,8 @@ echo "==> systemd units and Caddyfile"
 install -m 0644 "${APP_DIR}"/infra/systemd/*.service "${APP_DIR}"/infra/systemd/*.timer /etc/systemd/system/
 install -m 0755 "${APP_DIR}/infra/backup/pg-backup.sh" /usr/local/bin/smartclass-backup
 systemctl daemon-reload
+# Servers set up before the retention timer existed get it here (no-op once enabled).
+systemctl enable --now smartclass-retention.timer
 
 echo "==> Restart services"
 # Workers first (they resume from Redis/PostgreSQL), then the gateway (devices reconnect and

@@ -43,6 +43,30 @@ class NotesContext:
     settings: Settings
 
 
+def strip_leading_heading(markdown: str) -> str:
+    """Drops a Markdown heading the model put at the very top of a section body: the section's own
+    heading is shown above it, so it appeared twice (once as a huge h1)."""
+    lines = markdown.lstrip().split("\n")
+    if lines and lines[0].lstrip().startswith("#"):
+        lines = lines[1:]
+    return "\n".join(lines).strip()
+
+
+def term_key(term: str) -> str:
+    """Case- and plural-insensitive key, so "Page"/"Pages" or "Process"/"Processes" are one term."""
+    words = term.strip().lower().split()
+    if not words:
+        return ""
+    last = words[-1]
+    if last.endswith("ies") and len(last) > 4:
+        last = last[:-3] + "y"
+    elif last.endswith("sses"):
+        last = last[:-2]
+    elif last.endswith("s") and not last.endswith("ss") and len(last) > 3:
+        last = last[:-1]
+    return " ".join([*words[:-1], last])
+
+
 def numbered_lines(segments: list[TranscriptSegment]) -> list[str]:
     return [
         f"[{i}|{s.id}|{s.start_ms // 60000}:{s.start_ms // 1000 % 60:02d}] {s.text}"
@@ -103,33 +127,50 @@ def _clamp(i: int, n: int) -> int:
     return max(0, min(i, n - 1))
 
 
+def topic_ranges(topics: list[tuple[str, int, int]], n: int) -> list[tuple[str, int, int]]:
+    """(title, first line, last line), clamped, in order and non-overlapping. Models sometimes
+    return overlapping topics (seen: lines 3-5 and 4-5), and the shared lines were then written
+    up twice; a later topic now starts after the previous one, and one left empty is dropped."""
+    spans = [
+        (title, min(_clamp(a, n), _clamp(b, n)), max(_clamp(a, n), _clamp(b, n))) for title, a, b in topics
+    ]
+    spans.sort(key=lambda span: span[1])  # stable: equal starts keep the model's order
+    out: list[tuple[str, int, int]] = []
+    next_free = 0
+    for title, start, end in spans:
+        lo = max(start, next_free)
+        if lo <= end:
+            out.append((title, lo, end))
+            next_free = end + 1
+    return out
+
+
 async def build_material(
     ctx: NotesContext, lecture: Lecture, segments: list[TranscriptSegment]
 ) -> dict[ArtifactKind, dict[str, Any]]:
     lines = numbered_lines(segments)[:MAX_LINES_PER_CALL]
     n = len(segments)
-    split = await ctx.llm.generate(prompts.SYSTEM, prompts.topics_prompt(lines), TopicSplit)
+    duration_ms = segments[-1].end_ms if segments else 0
+    split = await ctx.llm.generate(prompts.SYSTEM, prompts.topics_prompt(lines, duration_ms), TopicSplit)
     sections: list[dict[str, Any]] = []
     terms: dict[str, dict[str, Any]] = {}
-    for topic in split.topics:
-        lo, hi = _clamp(topic.start_segment, n), _clamp(topic.end_segment, n)
-        if hi < lo:
-            lo, hi = hi, lo
+    spans = topic_ranges([(t.title, t.start_segment, t.end_segment) for t in split.topics], n)
+    for title, lo, hi in spans:
         notes = await ctx.llm.generate(
             prompts.SYSTEM,
-            prompts.topic_notes_prompt(topic.title, numbered_lines(segments)[lo : hi + 1]),
+            prompts.topic_notes_prompt(title, numbered_lines(segments)[lo : hi + 1]),
             TopicNotes,
         )
         sections.append(
             {
                 "id": str(uuid.uuid4()),
                 "heading": notes.heading,
-                "body_markdown": notes.body_markdown,
+                "body_markdown": strip_leading_heading(notes.body_markdown),
                 "start_ms": segments[lo].start_ms,
             }
         )
         for t in notes.key_terms:
-            key = t.term.strip().lower()
+            key = term_key(t.term)
             if key not in terms:
                 terms[key] = {
                     "id": term_id(lecture.id, t.term),
