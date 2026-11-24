@@ -137,7 +137,33 @@ They cover:
 - the flash log: recovery after reboot, ACK persistence, power cut mid-write, never overwriting pending audio;
 - backoff bounds.
 
-## 6. Failure points to check first
+Without CMake or a PC compiler, zig works as one: `pip install ziglang`, then use
+`python -m ziglang cc` as the compiler (see the next section).
+
+## 6. Build check without ESP-IDF
+
+`tools/compile_check.py` checks that the firmware builds, using the ESP32-S3 compiler and the
+prebuilt ESP-IDF 5.5 libraries from the Arduino IDE's **esp32** board package (3.3.x, Boards
+Manager). It does not need ESP-IDF itself:
+
+```bash
+python firmware/tools/compile_check.py --host-tests "python -m ziglang cc"
+```
+
+It compiles every C file with `-Wall -Wextra -Werror`, links `recorder` and `mic_test` against
+ESP-IDF (so every IDF function they call exists), and turns the recorder into a flashable image
+whose size it checks against the 3 MB app partition. With `--host-tests` it also runs the lc_core
+tests. It downloads `esp_websocket_client` v1.8.0 (the version `idf_component.yml` resolves to)
+on first use.
+
+This is a check, not the release build: the Arduino libraries were built with Arduino's
+`sdkconfig`, not `recorder/sdkconfig.defaults`. Flash the board with `idf.py build flash`.
+
+Result on 2026-11-24: 17 files compiled with no warnings; both apps linked; recorder image
+1.05 MB of 3 MB; host tests 80 checks, 0 failures (also clean under UBSan and `-Wconversion`).
+Not yet run on the board.
+
+## 7. Failure points to check first
 
 1. **Flash erase stalls.** During an erase, both cores pause, so audio survives only on the 256 ms of I2S DMA buffering. Measure the worst erase time on your module. If chunks show gaps, raise `DMA_DESC` in `audio.c`.
 2. **TLS memory.** If a handshake fails with `MBEDTLS_ERR_SSL_ALLOC_FAILED`, keep `CONFIG_MBEDTLS_DYNAMIC_BUFFER=y`, or allow mbedTLS to use PSRAM (`CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC`).

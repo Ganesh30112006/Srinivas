@@ -2,7 +2,7 @@
 
 **Project report: B.Tech, Computer Science and Engineering**
 
-> Fill in before submission: student names and roll numbers, guide, department, institution, academic year, and the measured results in Chapter 9. Every number in this report that was not measured on real hardware is marked *to be measured*.
+> Fill in before submission: student names and roll numbers, guide, department, institution, academic year, and the remaining results in Chapter 9. Chapter 9 already has results measured on synthetic speech, a local stack and the device simulator; each one says so. Every number not yet measured is marked *to be measured*.
 
 ---
 
@@ -123,7 +123,7 @@ Design and build a low-cost classroom system that:
 
 | ID | Requirement | Target |
 |---|---|---|
-| N1 | Live transcript latency (speech → screen) | a few seconds; *to be measured* (§9.3) |
+| N1 | Live transcript latency (speech → screen) | a few seconds; locally 9.3 s p50 with `small` on a laptop CPU, limited by decoding (§9.3); *to be measured* on the server |
 | N2 | Audio loss during a Wi-Fi outage | zero chunks lost, zero duplicates, within the buffer capacity (§6.4) |
 | N3 | Offline buffer | about 12.7 minutes of audio (PSRAM + internal flash) |
 | N4 | Security | HTTPS/WSS only; per-device tokens stored as hashes; server-side sessions with CSRF protection |
@@ -303,7 +303,7 @@ The REST types are generated from the server's OpenAPI document, so the client a
 | Evaluation | pytest | WER/CER with Indic-safe normalisation, percentiles, latency pairing, recovery checks |
 | Frontend | Vitest + Testing Library + MSW | Pages and components against a mock API and a fake live socket |
 | End-to-end | Playwright + axe | Prepare → live, outage gap → backfill, reconnect without duplicates, search → timestamp, quiz, export; WCAG 2.1 A/AA on every page for every role |
-| Firmware | host unit tests (CMake) | Framing, ADPCM, ACK ranges, ring buffer, flash log, back-off |
+| Firmware | host unit tests (CMake or zig cc); `firmware/tools/compile_check.py` | Framing, ADPCM, ACK ranges, ring buffer, flash log, back-off (80 checks, also under UBSan); every firmware file compiled for the ESP32-S3 with `-Werror`, both apps linked against ESP-IDF 5.5, recorder image 1.05 MB of 3 MB. Not yet run on the board |
 
 Static checks: ruff and `mypy --strict` (Python); `tsc`, ESLint and Prettier (TypeScript); a CSS design-token lint; a bundle-size budget.
 
@@ -311,9 +311,27 @@ Static checks: ruff and `mypy --strict` (Python); `tsc`, ESLint and Prettier (Ty
 
 Measure on real classroom recordings with `eval/asr_benchmark.py` (see `eval/README.md`). Report WER for English and CER for Telugu and Hindi.
 
+**Measured so far (2026-11-24): synthetic speech only.** These are not classroom results. The test set is four lecture texts (`eval/synthetic/`), each spoken by four Windows voices (US English: Zira, David; Indian English: Heera, Ravi): 16 recordings, 21.5 minutes, 3,156 reference words, 16 kHz mono. The machine was a laptop with an Intel Core i7-1255U and 16 GB RAM, running faster-whisper on the CPU (int8). Synthetic speech is clean and evenly paced, so real classrooms will have higher error rates.
+
+| Model | Decoding | Speech | WER | CER | Real-time factor |
+|---|---|---|---|---|---|
+| Whisper `base` | beam 5 | all 16 | 2.5% | 1.3% | 0.086 |
+| Whisper `small` | beam 5 | all 16 | 1.9% | 1.0% | 0.276 |
+| Whisper `base` | live (beam 1) | all 16 | 2.5% | 1.3% | 0.075 |
+| Whisper `small` | live (beam 1) | all 16 | 1.8% | 1.1% | 0.209 |
+| Whisper `small` | live (beam 1) | US English voices | 1.7% | 1.1% | 0.177 |
+| Whisper `small` | live (beam 1) | Indian English voices | 2.0% | 1.1% | 0.185 |
+
+Findings:
+- `small` makes about a quarter fewer word errors than `base`, at about three times the compute.
+- Errors are mostly technical words, for example "convoy effect" written as "convo effect" in both Indian-English voices.
+- Live decoding (beam 1) is as accurate as beam 5 here.
+
+Still *to be measured*, because they need real recordings (Windows has no Telugu or Hindi voices):
+
 | Model | Language | WER / CER | Real-time factor |
 |---|---|---|---|
-| *to be measured* | English | | |
+| *to be measured* | English (classroom) | | |
 | *to be measured* | Telugu | | |
 | *to be measured* | Hindi | | |
 | *to be measured* | Code-switched | | |
@@ -322,20 +340,50 @@ Measure on real classroom recordings with `eval/asr_benchmark.py` (see `eval/REA
 
 Use `eval/latency_report.py` on a recorded lecture session.
 
+**Measured so far (2026-11-24): one local full-stack run, not a deployment.** All services ran on the laptop from §9.2: the API, the gateway, the `small` ASR worker on the CPU, the notes worker, the browser and the device simulator. The run streamed a 64 s synthetic lecture with a 10 s network outage (129 chunks). The latency report pairs chunks with decoding windows as described in `eval/README.md`.
+
+| Stage | n | p50 | p95 |
+|---|---|---|---|
+| Capture → gateway (live chunks) | 109 | 0.52 s | 0.54 s |
+| Gateway → decoding starts | 129 | 2.8 s | 11.3 s |
+| Decoding one window (`small`, CPU) | 129 | 4.6 s | 5.3 s |
+| Published → shown in the browser | 21 | 0.18 s | 0.24 s |
+| **Capture → text first shown** (partial or final) | 122 | **9.3 s** | **23.8 s** |
+
+The bottleneck is decoding. Each live window takes about 4.6 s with `small` on this laptop CPU, so chunks queue behind it. The p95 also includes the 10 s outage backlog. The network and browser stages take under a second together. Measures to bring the delay down to a few seconds:
+- a faster CPU, or a GPU (`ASR_DEVICE=cuda`);
+- the `base` model, which decodes about three times faster;
+- a longer live interval.
+
+Measure again on the EC2 instance.
+
 | Measure | p50 | p95 |
 |---|---|---|
-| Capture → partial shown | *to be measured* | |
-| Capture → final shown | *to be measured* | |
+| Capture → partial shown (deployment) | *to be measured* | |
+| Capture → final shown (deployment) | *to be measured* | |
 
 ### 9.4 Network recovery
 
 Use `eval/recovery_report.py` after pulling the Wi-Fi during recording.
 
-| Outage length | Chunks sent | Chunks stored | Lost | Duplicates | Time to fill gap |
-|---|---|---|---|---|---|
-| 30 s | *to be measured* | | | | |
-| 2 min | *to be measured* | | | | |
-| 10 min | *to be measured* | | | | |
+**Measured so far (2026-11-24): the device simulator on the local stack, not the board.** The simulator speaks the device protocol exactly (`backend/tools/device_simulator.py`). It stops sending for the outage, keeps recording, and sends the backlog when it reconnects. Longer runs were sped up (the "Speed" column); outages are in lecture time.
+
+| Outage | Lecture | Speed | Chunks sent | Chunks stored | Lost | Duplicates | Time to fill the gap after reconnecting |
+|---|---|---|---|---|---|---|---|
+| 10 s | 64 s | 1× | 129 | 129 | 0 | 0 | under 0.7 s |
+| 30 s | 2.8 min | 1× | 340 | 340 | 0 | 0 | under 0.6 s |
+| 2 min | 5.3 min | 2× | 641 | 641 | 0 | 0 | under 0.4 s |
+| 10 min | 13.6 min | 4× | 1,632 | 1,632 | 0 | 0 | under 0.3 s |
+
+How to read the results:
+- In every run, each chunk was stored exactly once and the report passed.
+- The longest capture-to-arrival delay in each run equals the outage's wall-clock length plus the time to fill the gap, so the backlog went out almost immediately after reconnecting.
+- Live chunks outside the gaps arrived 0.15–0.5 s after capture (p50).
+- The 10-minute outage fits the device's offline buffer (about 12.7 minutes, PSRAM and flash).
+
+Still *to be measured* on the board, with the Wi-Fi uplink pulled:
+- the flash spill and I²S timing;
+- a power cut during the outage.
 
 ---
 

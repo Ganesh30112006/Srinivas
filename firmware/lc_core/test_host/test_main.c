@@ -1,11 +1,10 @@
-/*
- * Host unit tests for lc_core (no ESP-IDF needed). Build and run:
- *   cmake -S firmware/lc_core/test_host -B firmware/lc_core/test_host/build
- *   cmake --build firmware/lc_core/test_host/build && ./firmware/lc_core/test_host/build/lc_core_tests
- * or: cc -std=c11 -Wall -Wextra -Werror -I firmware/lc_core/include firmware/lc_core/src/*.c \
- *        firmware/lc_core/test_host/test_main.c -o lc_core_tests && ./lc_core_tests
- * Run from the repository root so contracts/test_vectors/ can be found.
- */
+// Host unit tests for lc_core (no ESP-IDF needed). Build and run:
+//   cmake -S firmware/lc_core/test_host -B firmware/lc_core/test_host/build
+//   cmake --build firmware/lc_core/test_host/build && ./firmware/lc_core/test_host/build/lc_core_tests
+// or: cc -std=c11 -Wall -Wextra -Werror -I firmware/lc_core/include firmware/lc_core/src/*.c
+//        firmware/lc_core/test_host/test_main.c -lm -o lc_core_tests && ./lc_core_tests
+// Run from the repository root so contracts/test_vectors/ can be found.
+// (Line comments: a block comment cannot contain the "src/*.c" glob, which -Werror rejects.)
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
