@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/Button';
 import { Dialog } from '@/components/Dialog';
-import { Banner } from '@/components/Feedback';
+import { ErrorBanner } from '@/components/Feedback';
 import { Field, TextArea } from '@/components/Field';
 import { toast } from '@/components/Toast';
 import { useEditSegment } from '@/features/lectures/api';
@@ -62,11 +62,7 @@ export function EditSegmentDialog({ lectureId, segment, onClose }: EditSegmentDi
             );
           }}
         >
-          {save.isError && (
-            <Banner tone="danger" role="alert">
-              {t('transcript.editFailed')}
-            </Banner>
-          )}
+          {save.isError && <ErrorBanner title={t('transcript.editFailed')} error={save.error} />}
           <Field
             label={t('transcript.editLabel')}
             error={trimmed === '' ? t('transcript.editEmpty') : undefined}

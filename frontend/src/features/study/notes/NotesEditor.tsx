@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { isApiError } from '@/api/errors';
 import type { Notes } from '@/api/types';
 import { Button, IconButton } from '@/components/Button';
-import { Banner } from '@/components/Feedback';
+import { Banner, ErrorBanner } from '@/components/Feedback';
 import { Field, TextArea, TextInput } from '@/components/Field';
 import { toast } from '@/components/Toast';
 import { useNotesMutations } from '../api';
@@ -88,11 +88,14 @@ export function NotesEditor({
       onSubmit={(e) => void form.handleSubmit(submit)(e)}
       aria-label={t('editor.title')}
     >
-      {save.isError && (
-        <Banner tone="danger" role="alert">
-          {conflict ? t('editor.conflict') : t('editor.errors.generic')}
-        </Banner>
-      )}
+      {save.isError &&
+        (conflict ? (
+          <Banner tone="danger" role="alert">
+            {t('editor.conflict')}
+          </Banner>
+        ) : (
+          <ErrorBanner title={t('editor.errors.generic')} error={save.error} />
+        ))}
       {errors?.root?.message !== undefined && (
         <Banner tone="danger" role="alert">
           {errors.root.message}

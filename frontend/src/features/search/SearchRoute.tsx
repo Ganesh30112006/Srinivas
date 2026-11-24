@@ -117,7 +117,11 @@ export function SearchRoute() {
           ))}
         </LoadingRegion>
       ) : results.isError ? (
-        <ErrorState title={t('errorTitle')} onRetry={() => void results.refetch()} />
+        <ErrorState
+          title={t('errorTitle')}
+          error={results.error}
+          onRetry={() => void results.refetch()}
+        />
       ) : results.data.total_hits === 0 ? (
         <EmptyState
           icon={SearchX}

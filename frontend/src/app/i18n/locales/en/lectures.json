@@ -56,7 +56,9 @@
     "delete": "Delete lecture",
     "deleteConfirmTitle": "Delete this lecture?",
     "deleteConfirmBody": "Removes the recording, transcript and notes for everyone. This cannot be undone.",
-    "deleted": "Lecture deleted."
+    "deleted": "Lecture deleted.",
+    "updateFailed": "Couldn't update the lecture.",
+    "deleteFailed": "Couldn't delete the lecture."
   },
   "export": {
     "button": "Export",
@@ -67,7 +69,7 @@
     "progress": "Downloading {{format}}… {{pct}}%",
     "progressUnknown": "Downloading {{format}}…",
     "done": "Downloaded {{filename}}",
-    "failed": "Export failed. Please try again."
+    "failed": "Couldn't export the lecture."
   },
   "transcript": {
     "label": "Transcript",
@@ -93,7 +95,7 @@
     "editEmpty": "The line can't be empty.",
     "editSave": "Save correction",
     "editSaved": "Line corrected.",
-    "editFailed": "Couldn't save the correction. Please try again."
+    "editFailed": "Couldn't save the correction."
   },
   "search": {
     "label": "Find in transcript",
@@ -130,9 +132,7 @@
       "consent": "Confirm that students know the lecture is recorded."
     },
     "errors": {
-      "deviceBusy": "That microphone is already recording another lecture.",
-      "deviceNotAssigned": "That microphone isn't assigned to you.",
-      "generic": "Couldn't prepare the lecture. Please try again."
+      "failed": "Couldn't prepare the lecture."
     },
     "consent": "Students know this lecture is recorded",
     "consentHint": "Required."

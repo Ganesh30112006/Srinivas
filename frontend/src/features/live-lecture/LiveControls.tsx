@@ -1,11 +1,9 @@
 import { Mic, Pause, Play, Square } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { isApiError } from '@/api/errors';
 import type { ControlAction, LectureStatus } from '@/api/types';
 import { Button } from '@/components/Button';
 import { Dialog } from '@/components/Dialog';
-import { toast } from '@/components/Toast';
 import { useRecordingControl } from '@/features/lectures/api';
 import styles from './Live.module.css';
 
@@ -15,21 +13,6 @@ interface LiveControlsProps {
   paused: boolean;
   /** null while the device's state is unknown (no device.status yet). */
   deviceOnline: boolean | null;
-}
-
-type ErrorKey =
-  | 'controls.errors.deviceOffline'
-  | 'controls.errors.deviceBusy'
-  | 'controls.errors.invalidState'
-  | 'controls.errors.generic';
-
-function errorKey(error: unknown): ErrorKey {
-  if (!isApiError(error)) return 'controls.errors.generic';
-  if (error.code === 'device_offline' || error.code === 'no_device')
-    return 'controls.errors.deviceOffline';
-  if (error.code === 'device_busy') return 'controls.errors.deviceBusy';
-  if (error.code === 'invalid_state') return 'controls.errors.invalidState';
-  return 'controls.errors.generic';
 }
 
 /**
@@ -51,9 +34,6 @@ export function LiveControls({ lectureId, status, paused, deviceOnline }: LiveCo
     control.mutate(action, {
       onSuccess: () => {
         setSent({ status, paused });
-      },
-      onError: (error) => {
-        toast.error(t(errorKey(error)));
       },
     });
   };

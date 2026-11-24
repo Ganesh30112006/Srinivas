@@ -48,7 +48,7 @@
     },
     "save": "Save profile",
     "saved": "Profile saved.",
-    "error": "Couldn't save your profile. Please try again."
+    "error": "Couldn't save your profile."
   },
   "password": {
     "heading": "Password",
@@ -62,8 +62,7 @@
     "mismatch": "The passwords don't match.",
     "submit": "Change password",
     "changed": "Password changed.",
-    "wrong": "The current password is incorrect.",
-    "error": "Couldn't change the password. Please try again."
+    "error": "Couldn't change the password."
   },
   "notifications": {
     "heading": "Notifications",

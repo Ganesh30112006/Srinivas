@@ -60,6 +60,7 @@ export function LibraryRoute() {
         // Full-page error only when nothing loaded; a failed *next* page keeps the list visible.
         <ErrorState
           title={t('library.errorTitle')}
+          error={lectures.error}
           onRetry={() => void lectures.refetch()}
           retrying={lectures.isRefetching}
         />
@@ -106,6 +107,7 @@ export function LibraryRoute() {
             <ErrorState
               compact
               title={t('library.errorTitle')}
+              error={lectures.error}
               onRetry={() => void lectures.fetchNextPage()}
             />
           )}

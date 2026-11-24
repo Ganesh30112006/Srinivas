@@ -1,5 +1,6 @@
 {
   "pageTitle": "Live: {{title}}",
+  "loadError": "Couldn't load this lecture",
   "elapsed": "Elapsed",
   "detectedLanguage": "Language",
   "latency": "Delay {{ms}} ms",
@@ -84,10 +85,7 @@
     "waiting": "Waiting for the microphone…",
     "offlineHint": "Microphone offline. Use its buttons.",
     "errors": {
-      "deviceOffline": "The microphone isn't connected to the server.",
-      "deviceBusy": "That microphone is recording another lecture.",
-      "invalidState": "The lecture changed state. Refresh and try again.",
-      "generic": "Couldn't send the command. Please try again."
+      "title": "Couldn't send the command to the microphone."
     }
   },
   "monitor": {

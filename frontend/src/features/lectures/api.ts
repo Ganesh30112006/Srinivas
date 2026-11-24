@@ -8,6 +8,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { queryKeys, type LectureListFilters } from '@/api/queryKeys';
 import type {
@@ -135,7 +136,9 @@ export function usePrepareLecture() {
 
 export function useUpdateLecture(lectureId: string) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation('lectures');
   return useMutation({
+    meta: { errorTitle: t('detail.updateFailed') },
     mutationFn: (body: LectureUpdate) =>
       request(
         api.PATCH('/lectures/{lecture_id}', { params: { path: { lecture_id: lectureId } }, body }),
@@ -149,7 +152,9 @@ export function useUpdateLecture(lectureId: string) {
 
 export function useDeleteLecture() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation('lectures');
   return useMutation({
+    meta: { errorTitle: t('detail.deleteFailed') },
     mutationFn: (lectureId: string) =>
       request(
         api.DELETE('/lectures/{lecture_id}', { params: { path: { lecture_id: lectureId } } }),
@@ -202,7 +207,9 @@ export function useEditSegment(lectureId: string) {
 
 /** Start/Pause/Resume/Stop from the web; the device reports the result on the live socket. */
 export function useRecordingControl(lectureId: string) {
+  const { t } = useTranslation('live');
   return useMutation({
+    meta: { errorTitle: t('controls.errors.title') },
     mutationFn: (action: ControlAction) =>
       request(
         api.POST('/lectures/{lecture_id}/control', {

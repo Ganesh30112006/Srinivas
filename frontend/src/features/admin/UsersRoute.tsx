@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { isApiError } from '@/api/errors';
 import { useDocumentTitle } from '@/app/useDocumentTitle';
 import { Button } from '@/components/Button';
 import { ErrorState, LoadingRegion, Skeleton } from '@/components/Feedback';
@@ -24,13 +23,6 @@ export function UsersRoute() {
     onSuccess: () => {
       toast.success(t('users.updated', { name }));
     },
-    onError: (error: unknown) => {
-      toast.error(
-        isApiError(error) && error.code === 'cannot_disable_self'
-          ? t('users.errors.self')
-          : t('users.errors.generic'),
-      );
-    },
   });
 
   return (
@@ -45,7 +37,11 @@ export function UsersRoute() {
           <Skeleton className={styles.skeleton} />
         </LoadingRegion>
       ) : users.isError ? (
-        <ErrorState title={t('users.errorTitle')} onRetry={() => void users.refetch()} />
+        <ErrorState
+          title={t('users.errorTitle')}
+          error={users.error}
+          onRetry={() => void users.refetch()}
+        />
       ) : (
         <div className={styles.tableWrap}>
           <table className={styles.table}>

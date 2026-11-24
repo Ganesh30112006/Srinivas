@@ -40,6 +40,19 @@ describe('LoginRoute', () => {
     });
   });
 
+  it("starts a new session without the previous user's cached data", async () => {
+    // e.g. a lecturer's session expired on a shared lab PC and a student signs in on that tab.
+    const { user, router, queryClient } = renderApp('/login', { as: null });
+    queryClient.setQueryData(['lectures', 'draft-notes-of-previous-user'], { secret: true });
+    await user.type(await emailField(), 'arjun.kumar@college.example');
+    await user.type(screen.getByLabelText('Password'), 'student-demo');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => {
+      expect(router.state.location.pathname).not.toBe('/login');
+    });
+    expect(queryClient.getQueryData(['lectures', 'draft-notes-of-previous-user'])).toBeUndefined();
+  });
+
   it('ignores an off-site ?next= redirect', async () => {
     const { user, router } = renderApp('/login?next=https%3A%2F%2Fevil.example', { as: null });
     await user.type(await emailField(), 'arjun.kumar@college.example');

@@ -4,10 +4,15 @@ import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { isApiError } from '@/api/errors';
 import { useDocumentTitle } from '@/app/useDocumentTitle';
 import { Button } from '@/components/Button';
-import { Banner, EmptyState, ErrorState, LoadingRegion, Skeleton } from '@/components/Feedback';
+import {
+  EmptyState,
+  ErrorBanner,
+  ErrorState,
+  LoadingRegion,
+  Skeleton,
+} from '@/components/Feedback';
 import { Field, TextInput } from '@/components/Field';
 import { PageHeader } from '@/components/Page';
 import { toast } from '@/components/Toast';
@@ -60,11 +65,11 @@ export function SubjectsRoute() {
         }
       >
         {create.isError && (
-          <Banner tone="danger" role="alert" className={styles.full}>
-            {isApiError(create.error) && create.error.isConflict
-              ? t('subjects.errors.exists')
-              : t('subjects.errors.generic')}
-          </Banner>
+          <ErrorBanner
+            title={t('subjects.errors.addFailed')}
+            error={create.error}
+            className={styles.full}
+          />
         )}
         <Field label={t('subjects.code')} error={form.formState.errors.code?.message}>
           {(c) => (
@@ -100,7 +105,11 @@ export function SubjectsRoute() {
           <Skeleton className={styles.skeleton} />
         </LoadingRegion>
       ) : subjects.isError ? (
-        <ErrorState title={t('subjects.errorTitle')} onRetry={() => void subjects.refetch()} />
+        <ErrorState
+          title={t('subjects.errorTitle')}
+          error={subjects.error}
+          onRetry={() => void subjects.refetch()}
+        />
       ) : subjects.data.length === 0 ? (
         <EmptyState
           icon={BookMarked}

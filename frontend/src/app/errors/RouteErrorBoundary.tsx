@@ -1,4 +1,5 @@
 import { FileQuestion, Lock, RefreshCw } from 'lucide-react';
+import { useEffect } from 'react';
 import {
   isRouteErrorResponse,
   Navigate,
@@ -10,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/errors';
 import { Button, ButtonLink } from '@/components/Button';
 import { EmptyState, ErrorState } from '@/components/Feedback';
+import { logger } from '@/lib/logger';
 import { useDocumentTitle } from '../useDocumentTitle';
 import { paths } from '../paths';
 
@@ -45,6 +47,9 @@ export function RouteErrorBoundary() {
   const revalidator = useRevalidator();
   const location = useLocation();
   useDocumentTitle(t('routeError.title'));
+  useEffect(() => {
+    logger.error('route failed', { error, path: location.pathname });
+  }, [error, location.pathname]);
 
   if (isApiError(error) && error.isUnauthorized) {
     return <Navigate to={paths.login(`${location.pathname}${location.search}`)} replace />;
@@ -88,14 +93,18 @@ export function RouteErrorBoundary() {
       />
     );
   }
+  // A crash in our own code (not a failed request): reloading gets a clean state.
+  const ownBug = !isApiError(error) && !isRouteErrorResponse(error);
   return (
     <ErrorState
       title={t('routeError.title')}
-      message={t('routeError.body')}
+      error={error}
       retrying={revalidator.state === 'loading'}
       onRetry={() => {
-        void revalidator.revalidate();
+        if (ownBug) window.location.reload();
+        else void revalidator.revalidate();
       }}
+      action={<ButtonLink to={paths.home()}>{tc('actions.goHome')}</ButtonLink>}
     />
   );
 }

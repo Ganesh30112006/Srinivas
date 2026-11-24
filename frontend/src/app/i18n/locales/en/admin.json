@@ -17,8 +17,7 @@
       "name": "Use 2–120 characters."
     },
     "errors": {
-      "exists": "That subject code already exists.",
-      "generic": "Couldn't add the subject. Please try again."
+      "addFailed": "Couldn't add the subject."
     }
   },
   "users": {
@@ -49,9 +48,8 @@
       "password": "Use at least 8 characters."
     },
     "errors": {
-      "exists": "A user with this email already exists.",
-      "self": "You can't disable your own account.",
-      "generic": "Couldn't save. Please try again."
+      "addFailed": "Couldn't add the user.",
+      "updateFailed": "Couldn't update the user."
     },
     "enableAction": "Enable",
     "disableAction": "Disable"

@@ -24,15 +24,19 @@
   "navigating": "Loading page",
   "notFound": {
     "title": "Page not found",
-    "body": "This page doesn't exist."
+    "body": "There is nothing at this address. The link may be wrong, or the page was moved or deleted."
   },
   "routeError": {
     "title": "This page couldn't be loaded",
-    "body": "This page couldn't load.",
     "chunkTitle": "A new version is available",
-    "chunkBody": "The app was updated. Reload to continue.",
+    "chunkBody": "The app was updated while this tab was open. Reload to continue.",
     "forbiddenTitle": "You don't have access to this page",
-    "forbiddenBody": "You don't have access to this page."
+    "forbiddenBody": "Your account can't open this page. If you need it, ask your administrator."
+  },
+  "appCrash": {
+    "title": "Something went wrong",
+    "body": "The app hit an unexpected problem and stopped. Reload the page to continue; if it keeps happening, tell your administrator.",
+    "reload": "Reload page"
   },
   "widgetError": {
     "title": "This section couldn't be shown",

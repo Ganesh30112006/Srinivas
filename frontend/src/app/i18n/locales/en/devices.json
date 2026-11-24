@@ -68,8 +68,7 @@
       "serial": "Serial must be 12 characters using 0–9 and A–F."
     },
     "errors": {
-      "exists": "A device with this serial is already registered.",
-      "generic": "Couldn't register the device. Please try again."
+      "failed": "Couldn't register the device."
     },
     "tokenTitle": "Device token (shown once)",
     "tokenBody": "Copy this token into nvs_config.csv now. It is shown only once.",
@@ -95,7 +94,7 @@
     "appliedNote": "Applied when the device next connects.",
     "save": "Save settings",
     "saved": "Device settings saved.",
-    "error": "Couldn't save the device settings. Please try again."
+    "error": "Couldn't save the device settings."
   },
   "lecturers": {
     "heading": "Lecturers",
@@ -105,6 +104,6 @@
     "none": "No active lecturers. Add one under Users.",
     "save": "Save lecturers",
     "saved": "Lecturers updated.",
-    "error": "Couldn't update the lecturers. Please try again."
+    "error": "Couldn't update the lecturers."
   }
 }

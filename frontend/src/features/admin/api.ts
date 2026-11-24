@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import type { SubjectCreate, UserCreate, UserUpdate } from '@/api/types';
@@ -20,7 +21,9 @@ export function useCreateUser() {
 
 export function useUpdateUser() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation('admin');
   return useMutation({
+    meta: { errorTitle: t('users.errors.updateFailed') },
     mutationFn: ({ id, body }: { id: string; body: UserUpdate }) =>
       request(api.PATCH('/users/{user_id}', { params: { path: { user_id: id } }, body })),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.users() }),

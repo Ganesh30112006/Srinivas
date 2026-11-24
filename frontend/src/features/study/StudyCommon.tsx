@@ -74,5 +74,5 @@ export function StudyError({
   if (problem === 'not_ready' || problem === 'not_published') {
     return <EmptyState icon={Clock} title={notReady.title} body={notReady.body} action={extra} />;
   }
-  return <ErrorState title={errorTitle} onRetry={onRetry} />;
+  return <ErrorState title={errorTitle} error={error} onRetry={onRetry} />;
 }

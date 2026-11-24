@@ -12,6 +12,8 @@ export interface LectureListFilters {
 
 export const queryKeys = {
   me: () => ['auth', 'me'] as const,
+  /** Set when a 401 ended a signed-in session, so the sign-in page can say why it appeared. */
+  sessionEnded: () => ['auth', 'session-ended'] as const,
   subjects: () => ['subjects'] as const,
   lectures: {
     all: () => ['lectures'] as const,

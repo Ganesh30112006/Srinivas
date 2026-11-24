@@ -34,7 +34,11 @@ function LecturerHome() {
             compact
             headingLevel={3}
             title={t('devicesErrorTitle')}
-            onRetry={() => void devices.refetch()}
+            error={devices.error ?? subjects.error}
+            onRetry={() => {
+              void devices.refetch();
+              void subjects.refetch();
+            }}
           />
         ) : (
           <PrepareLectureForm subjects={subjects.data} devices={devices.data} />
@@ -49,6 +53,7 @@ function LecturerHome() {
               compact
               headingLevel={3}
               title={t('devicesErrorTitle')}
+              error={devices.error}
               onRetry={() => void devices.refetch()}
             />
           ) : devices.data.length === 0 ? (
@@ -69,6 +74,7 @@ function LecturerHome() {
               compact
               headingLevel={3}
               title={t('recentErrorTitle')}
+              error={recent.error}
               onRetry={() => void recent.refetch()}
             />
           ) : (
@@ -102,6 +108,7 @@ function AdminHome() {
           compact
           headingLevel={3}
           title={t('devicesErrorTitle')}
+          error={devices.error}
           onRetry={() => void devices.refetch()}
         />
       ) : (

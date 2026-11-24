@@ -1,4 +1,5 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { isApiError } from '@/api/errors';
 import { queryKeys } from '@/api/queryKeys';
@@ -38,6 +39,9 @@ export function useLogin() {
     mutationFn: (credentials: Credentials) =>
       request(api.POST('/auth/login', { body: credentials })),
     onSuccess: (user) => {
+      // A new session starts empty: after an expired session (no sign-out) on a shared lab PC, the
+      // previous user's cached pages, e.g. a lecturer's draft notes, must not show for the next one.
+      queryClient.clear();
       queryClient.setQueryData(queryKeys.me(), user);
     },
   });
@@ -45,7 +49,10 @@ export function useLogin() {
 
 export function useLogout() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation('auth');
   return useMutation({
+    // Signed out on this device anyway, but the server session may still be open: say so.
+    meta: { errorTitle: t('signOutFailed') },
     mutationFn: () => request(api.POST('/auth/logout')),
     // Even if the request fails, forget everything locally: the user asked to leave.
     onSettled: () => {

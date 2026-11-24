@@ -33,6 +33,7 @@ export function StudentHome() {
             compact
             headingLevel={3}
             title={t('recentErrorTitle')}
+            error={live.error}
             onRetry={() => void live.refetch()}
           />
         ) : (live.data.pages[0]?.items.length ?? 0) === 0 ? (
@@ -53,6 +54,7 @@ export function StudentHome() {
             compact
             headingLevel={3}
             title={t('recentErrorTitle')}
+            error={recent.error}
             onRetry={() => void recent.refetch()}
           />
         ) : bySubject.size === 0 ? (

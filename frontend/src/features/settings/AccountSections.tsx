@@ -3,10 +3,9 @@ import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { isApiError } from '@/api/errors';
 import type { User } from '@/api/types';
 import { Button } from '@/components/Button';
-import { Banner, ErrorState, LoadingRegion, Skeleton } from '@/components/Feedback';
+import { ErrorBanner, ErrorState, LoadingRegion, Skeleton } from '@/components/Feedback';
 import { Field, TextInput } from '@/components/Field';
 import { Section } from '@/components/Page';
 import { toast } from '@/components/Toast';
@@ -39,11 +38,7 @@ export function ProfileSection({ user }: { user: User }) {
           })(e)
         }
       >
-        {update.isError && (
-          <Banner tone="danger" role="alert">
-            {t('profile.error')}
-          </Banner>
-        )}
+        {update.isError && <ErrorBanner title={t('profile.error')} error={update.error} />}
         <Field label={t('profile.name')} error={form.formState.errors.full_name?.message}>
           {(c) => <TextInput {...c} autoComplete="name" {...form.register('full_name')} />}
         </Field>
@@ -85,7 +80,6 @@ export function PasswordSection() {
     defaultValues: { current_password: '', new_password: '', confirm: '' },
   });
   const errors = form.formState.errors;
-  const wrong = isApiError(change.error) && change.error.code === 'wrong_password';
   return (
     <Section title={t('password.heading')} headingId="password">
       <form
@@ -106,11 +100,7 @@ export function PasswordSection() {
         }
       >
         <p className={styles.hint}>{t('password.intro')}</p>
-        {change.isError && (
-          <Banner tone="danger" role="alert">
-            {wrong ? t('password.wrong') : t('password.error')}
-          </Banner>
-        )}
+        {change.isError && <ErrorBanner title={t('password.error')} error={change.error} />}
         <Field label={t('password.current')} error={errors.current_password?.message}>
           {(c) => (
             <TextInput
@@ -169,7 +159,11 @@ export function SystemSection() {
           <Skeleton className={styles.skeleton} />
         </LoadingRegion>
       ) : info.isError ? (
-        <ErrorState title={t('system.error')} onRetry={() => void info.refetch()} />
+        <ErrorState
+          title={t('system.error')}
+          error={info.error}
+          onRetry={() => void info.refetch()}
+        />
       ) : (
         <dl className={styles.facts}>
           <dt>{t('system.environment')}</dt>

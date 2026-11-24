@@ -165,3 +165,11 @@ Study material is AI-generated. If something looks wrong, check it against the t
 | "Notes haven't been published yet" | The lecturer has not published them. The transcript is still available. |
 | A transcript line is wrong | Lecturers can correct it from the Live page or the Transcript tab. |
 | Forgotten password | Ask an administrator to set a new one. |
+| "Your session has ended" on the sign-in page | You were signed out (for example after a long break). Sign in again; you return to the page you were on. |
+| "Couldn't reach the server" or "You're offline" | Check your internet connection, then press **Try again**. |
+| "The server is unavailable right now" or "The server can't reach its database" | The server is restarting or has a problem. Wait a minute and try again. |
+| "Something went wrong" with an error code | Press **Try again** or reload the page. If it keeps happening, send the error code shown (for example `internal_error · 500`) to your administrator. |
+| "A new version is available" | The app was updated while your tab was open. Press **Reload page**. |
+
+Every error message says what failed and why. A failed action (Delete, Publish, …) shows a short
+message in the bottom corner; anything you typed in a form stays there, so you can try again.

@@ -4,10 +4,9 @@ import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { isApiError } from '@/api/errors';
 import { Button } from '@/components/Button';
 import { Dialog } from '@/components/Dialog';
-import { Banner } from '@/components/Feedback';
+import { ErrorBanner } from '@/components/Feedback';
 import { Field, Select, TextInput } from '@/components/Field';
 import { toast } from '@/components/Toast';
 import { useCreateUser } from './api';
@@ -72,11 +71,7 @@ export function AddUserDialog() {
           }
         >
           {create.isError && (
-            <Banner tone="danger" role="alert">
-              {isApiError(create.error) && create.error.isConflict
-                ? t('users.errors.exists')
-                : t('users.errors.generic')}
-            </Banner>
+            <ErrorBanner title={t('users.errors.addFailed')} error={create.error} />
           )}
           <Field label={t('users.fullName')} error={errors.full_name?.message}>
             {(c) => <TextInput {...c} {...form.register('full_name')} />}

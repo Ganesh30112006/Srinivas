@@ -31,7 +31,7 @@ export function TranscriptTab() {
   const { t } = useTranslation('lectures');
   const [params, setParams] = useSearchParams();
   const lecture = useLecture(lectureId);
-  const { transcript, isPending, isError, refetch } = useFullTranscript(lectureId);
+  const { transcript, isPending, isError, error, refetch } = useFullTranscript(lectureId);
   const { showLanguageLabels, showTransliteration, visibleLanguages } = usePrefs();
   const listRef = useRef<VirtualListHandle>(null);
   // The query lives in state and is mirrored to ?q=. Driving the input from the URL directly
@@ -132,7 +132,9 @@ export function TranscriptTab() {
     );
   }
   if (isError)
-    return <ErrorState title={t('transcript.errorTitle')} onRetry={() => void refetch()} />;
+    return (
+      <ErrorState title={t('transcript.errorTitle')} error={error} onRetry={() => void refetch()} />
+    );
   if (items.length === 0 && hidden === 0) {
     return (
       <EmptyState

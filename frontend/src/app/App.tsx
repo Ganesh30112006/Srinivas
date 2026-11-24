@@ -1,6 +1,7 @@
 import { RouterProvider } from 'react-router/dom';
 import { queryClient } from '@/api/queryClient';
 import { AppProviders } from './AppProviders';
+import { AppCrashBoundary } from './errors/AppCrashBoundary';
 import { createAppRouter } from './router';
 
 /*
@@ -17,7 +18,9 @@ function getRouter(): ReturnType<typeof createAppRouter> {
 export function App() {
   return (
     <AppProviders queryClient={queryClient}>
-      <RouterProvider router={getRouter()} />
+      <AppCrashBoundary>
+        <RouterProvider router={getRouter()} />
+      </AppCrashBoundary>
     </AppProviders>
   );
 }

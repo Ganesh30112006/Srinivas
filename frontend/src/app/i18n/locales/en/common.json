@@ -42,6 +42,23 @@
   "aiGenerated": "AI-generated. Check key details against the transcript.",
   "loading": "Loading…",
   "offlineBanner": "You're offline. Showing saved data.",
+  "errors": {
+    "code": "Error code: {{code}}",
+    "offline": "You're offline. Check your internet connection, then try again.",
+    "network": "Couldn't reach the server. Check your internet connection, or try again in a minute.",
+    "sessionEnded": "Your session has ended. Sign in again to continue.",
+    "forbidden": "Your account doesn't have permission to do this.",
+    "notFound": "It may have been deleted, or the link is wrong.",
+    "conflict": "Something changed in the meantime. Reload the page, then try again.",
+    "tooLarge": "That is too large to send.",
+    "rateLimited": "Too many requests. Wait a moment, then try again.",
+    "timeout": "The server took too long to answer. Try again in a minute.",
+    "unavailable": "The server is unavailable right now, perhaps restarting. Try again in a minute.",
+    "server": "Something went wrong on the server. Try again; if it keeps happening, tell your administrator.",
+    "request": "The server couldn't complete this request (status {{status}}).",
+    "validation": "Check what you entered: {{details}}",
+    "unexpected": "Something went wrong in the app. Reload the page, then try again."
+  },
   "notes": "Notes ready",
   "notesDraft": "Notes in draft"
 }

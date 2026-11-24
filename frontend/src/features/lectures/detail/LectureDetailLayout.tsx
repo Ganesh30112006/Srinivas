@@ -176,6 +176,7 @@ export function LectureDetailLayout() {
     ) : (
       <ErrorState
         title={t('detail.errorTitle')}
+        error={lecture.error}
         onRetry={() => void lecture.refetch()}
         retrying={lecture.isRefetching}
       />

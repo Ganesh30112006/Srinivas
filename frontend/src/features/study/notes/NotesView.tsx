@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import Markdown from 'react-markdown';
+import Markdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTranslation } from 'react-i18next';
 import type { NoteSection } from '@/api/types';
@@ -8,13 +8,25 @@ import { formatOffset } from '@/lib/time';
 import styles from '../Study.module.css';
 
 /**
+ * Headings inside a body sit under the page's h1 and the section's h2: shift them down two levels,
+ * so a model's "# Topic" can never render bigger than the lecture title.
+ */
+const NESTED_HEADINGS: Components = {
+  h1: ({ node: _node, children, ...props }) => <h3 {...props}>{children}</h3>,
+  h2: ({ node: _node, children, ...props }) => <h3 {...props}>{children}</h3>,
+  h3: ({ node: _node, children, ...props }) => <h4 {...props}>{children}</h4>,
+  h4: ({ node: _node, children, ...props }) => <h5 {...props}>{children}</h5>,
+  h5: ({ node: _node, children, ...props }) => <h6 {...props}>{children}</h6>,
+};
+
+/**
  * Safe Markdown (D2): react-markdown builds React elements and never uses innerHTML; raw HTML in
  * lecturer edits or model output is dropped (skipHtml), and unsafe URLs are filtered by default.
  */
 export function MarkdownBody({ markdown }: { markdown: string }) {
   return (
     <div className="prose">
-      <Markdown remarkPlugins={[remarkGfm]} skipHtml>
+      <Markdown remarkPlugins={[remarkGfm]} components={NESTED_HEADINGS} skipHtml>
         {markdown}
       </Markdown>
     </div>

@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { render, type RenderResult } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { createMemoryRouter } from 'react-router';
@@ -15,6 +16,7 @@ export type SignedInAs = keyof typeof USER_IDS | null;
 export interface RenderAppResult extends RenderResult {
   user: UserEvent;
   router: ReturnType<typeof createMemoryRouter>;
+  queryClient: QueryClient;
 }
 
 /**
@@ -45,5 +47,5 @@ export function renderApp(
   const result = render(
     live === undefined ? app : <LiveSocketContext value={live}>{app}</LiveSocketContext>,
   );
-  return { ...result, user: userEvent.setup(), router };
+  return { ...result, user: userEvent.setup(), router, queryClient };
 }

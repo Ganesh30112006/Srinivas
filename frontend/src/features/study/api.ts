@@ -1,4 +1,5 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { isApiError } from '@/api/errors';
 import { mutationKeys, queryKeys } from '@/api/queryKeys';
@@ -60,6 +61,7 @@ export const useRevision = (lectureId: string) =>
 
 export function useNotesMutations(lectureId: string) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation('study');
   const setNotes = (data: Notes): void => {
     queryClient.setQueryData(queryKeys.lectures.notes(lectureId), data);
     void queryClient.invalidateQueries({
@@ -75,12 +77,14 @@ export function useNotesMutations(lectureId: string) {
     },
   });
   const regenerate = useMutation({
+    meta: { errorTitle: t('notes.regenerateFailed') },
     mutationFn: () => request(api.POST('/lectures/{lecture_id}/notes/regenerate', path(lectureId))),
     onSuccess: (data) => {
       setNotes(data);
     },
   });
   const publish = useMutation({
+    meta: { errorTitle: t('notes.publishFailed') },
     mutationFn: () => request(api.POST('/lectures/{lecture_id}/publish', path(lectureId))),
     onSuccess: (data) => {
       setNotes(data);

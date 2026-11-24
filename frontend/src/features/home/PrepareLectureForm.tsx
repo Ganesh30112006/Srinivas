@@ -5,11 +5,10 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { isApiError } from '@/api/errors';
 import type { Device, Subject } from '@/api/types';
 import { paths } from '@/app/paths';
 import { Button } from '@/components/Button';
-import { Banner } from '@/components/Feedback';
+import { Banner, ErrorBanner } from '@/components/Feedback';
 import { Checkbox, Field, Select, TextInput } from '@/components/Field';
 import { toast } from '@/components/Toast';
 import { usePrepareLecture } from '@/features/lectures/api';
@@ -70,23 +69,11 @@ export function PrepareLectureForm({ subjects, devices }: PrepareLectureFormProp
     });
   };
 
-  const serverError = prepare.isError
-    ? isApiError(prepare.error) && prepare.error.code === 'device_busy'
-      ? t('prepare.errors.deviceBusy')
-      : isApiError(prepare.error) && prepare.error.code === 'device_not_assigned'
-        ? t('prepare.errors.deviceNotAssigned')
-        : t('prepare.errors.generic')
-    : null;
-
   if (devices.length === 0) return <Banner tone="info">{t('prepare.noDevices')}</Banner>;
 
   return (
     <form className={styles.form} noValidate onSubmit={(e) => void handleSubmit(onSubmit)(e)}>
-      {serverError !== null && (
-        <Banner tone="danger" role="alert">
-          {serverError}
-        </Banner>
-      )}
+      {prepare.isError && <ErrorBanner title={t('prepare.errors.failed')} error={prepare.error} />}
       <Field label={t('prepare.subject')} error={errors.subject_id?.message}>
         {(c) => (
           <Select {...c} {...register('subject_id')}>

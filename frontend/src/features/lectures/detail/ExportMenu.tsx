@@ -22,6 +22,7 @@ export function ExportMenu({ lectureId }: { lectureId: string }) {
   const [progress, setProgress] = useState<{ loaded: number; total: number | null } | null>(null);
   const exporter = useMutation({
     mutationKey: mutationKeys.export(lectureId),
+    meta: { errorTitle: t('export.failed') },
     mutationFn: (format: ExportFormat) =>
       downloadWithProgress(
         `${env.apiBaseUrl}/lectures/${encodeURIComponent(lectureId)}/export?format=${format}`,
@@ -32,9 +33,6 @@ export function ExportMenu({ lectureId }: { lectureId: string }) {
     onSuccess: (file) => {
       saveBlob(file);
       toast.success(t('export.done', { filename: file.filename }));
-    },
-    onError: () => {
-      toast.error(t('export.failed'));
     },
     onSettled: () => {
       setProgress(null);

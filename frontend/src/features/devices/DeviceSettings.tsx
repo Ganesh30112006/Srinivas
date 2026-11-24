@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import type { Device } from '@/api/types';
 import { Button } from '@/components/Button';
-import { Banner } from '@/components/Feedback';
+import { ErrorBanner } from '@/components/Feedback';
 import { Checkbox, Field, TextInput } from '@/components/Field';
 import { Section } from '@/components/Page';
 import { toast } from '@/components/Toast';
@@ -56,11 +56,7 @@ export function DeviceSettingsForm({ device }: { device: Device }) {
           })(e)
         }
       >
-        {update.isError && (
-          <Banner tone="danger" role="alert">
-            {t('settings.error')}
-          </Banner>
-        )}
+        {update.isError && <ErrorBanner title={t('settings.error')} error={update.error} />}
         <Field label={t('register.name')} error={errors.name?.message}>
           {(c) => <TextInput {...c} {...form.register('name')} />}
         </Field>
@@ -117,9 +113,7 @@ export function DeviceLecturersForm({ device }: { device: Device }) {
   return (
     <Section title={t('lecturers.heading')} headingId="device-lecturers">
       {users.isError ? (
-        <Banner tone="danger" role="alert">
-          {t('lecturers.loadError')}
-        </Banner>
+        <ErrorBanner title={t('lecturers.loadError')} error={users.error} />
       ) : users.isPending ? (
         <p className={styles.muted}>{t('lecturers.loading')}</p>
       ) : lecturers.length === 0 ? (
@@ -137,11 +131,7 @@ export function DeviceLecturersForm({ device }: { device: Device }) {
             });
           }}
         >
-          {save.isError && (
-            <Banner tone="danger" role="alert">
-              {t('lecturers.error')}
-            </Banner>
-          )}
+          {save.isError && <ErrorBanner title={t('lecturers.error')} error={save.error} />}
           <fieldset className={styles.checkList}>
             <legend>{t('lecturers.legend')}</legend>
             {lecturers.map((u) => (

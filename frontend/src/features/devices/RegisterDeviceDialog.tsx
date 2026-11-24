@@ -4,10 +4,9 @@ import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { isApiError } from '@/api/errors';
 import { Button } from '@/components/Button';
 import { Dialog } from '@/components/Dialog';
-import { Banner } from '@/components/Feedback';
+import { ErrorBanner } from '@/components/Feedback';
 import { Field, TextInput } from '@/components/Field';
 import { toast } from '@/components/Toast';
 import { useRegisterDevice } from './api';
@@ -105,11 +104,7 @@ export function RegisterDeviceDialog() {
             }
           >
             {register.isError && (
-              <Banner tone="danger" role="alert">
-                {isApiError(register.error) && register.error.isConflict
-                  ? t('register.errors.exists')
-                  : t('register.errors.generic')}
-              </Banner>
+              <ErrorBanner title={t('register.errors.failed')} error={register.error} />
             )}
             <Field label={t('register.name')} error={errors.name?.message}>
               {(c) => (

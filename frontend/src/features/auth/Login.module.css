@@ -38,6 +38,10 @@
   color: var(--color-text-muted);
 }
 
+.notice {
+  margin-top: var(--space-4);
+}
+
 .form {
   display: flex;
   flex-direction: column;

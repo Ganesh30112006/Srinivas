@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { canRetry, describeError } from '@/api/describeError';
 import { cx } from '@/lib/cx';
 import { Button } from './Button';
 import styles from './Feedback.module.css';
@@ -101,34 +102,77 @@ export function EmptyState({
 
 interface ErrorStateProps {
   title: string;
+  /** Overrides the explanation derived from `error`. */
   message?: string;
+  /** The failure: explained in plain words, with a short code for support. */
+  error?: unknown;
   onRetry?: () => void;
   retrying?: boolean;
   compact?: boolean;
   headingLevel?: 2 | 3;
+  /** Another way forward, e.g. a link home. */
+  action?: ReactNode;
 }
 
-/** Human error message + retry. Rendered with role="alert" so the failure is announced. */
+/**
+ * What failed (title), why and what to do (message), and Retry when retrying can help.
+ * Rendered with role="alert" so the failure is announced.
+ */
 export function ErrorState({
   title,
   message,
+  error,
   onRetry,
   retrying = false,
   compact = false,
   headingLevel = 2,
+  action,
 }: ErrorStateProps) {
   const { t } = useTranslation();
   const Heading = headingLevel === 2 ? 'h2' : 'h3';
+  const described = error === undefined ? null : describeError(error, t);
+  const body = message ?? described?.message;
+  const showRetry = onRetry !== undefined && (error === undefined || canRetry(error));
   return (
     <div className={cx(styles.state, compact && styles.compact)} role="alert">
       <CircleAlert aria-hidden="true" className={styles.errorIcon} />
       <Heading className={styles.stateTitle}>{title}</Heading>
-      {message !== undefined && <p className={styles.stateBody}>{message}</p>}
-      {onRetry !== undefined && (
-        <Button icon={RefreshCw} onClick={onRetry} loading={retrying}>
-          {t('actions.retry')}
-        </Button>
+      {body !== undefined && <p className={styles.stateBody}>{body}</p>}
+      {described?.code != null && (
+        <p className={styles.errorCode}>{t('errors.code', { code: described.code })}</p>
+      )}
+      {(showRetry || action !== undefined) && (
+        <div className={styles.stateActions}>
+          {showRetry && (
+            <Button icon={RefreshCw} onClick={onRetry} loading={retrying}>
+              {t('actions.retry')}
+            </Button>
+          )}
+          {action}
+        </div>
       )}
     </div>
+  );
+}
+
+/**
+ * A failed action inside a form or dialog: what failed, then why ("Couldn't save the settings.
+ * The server is unavailable right now…"). The inputs stay as they were, so the user can retry.
+ */
+export function ErrorBanner({
+  title,
+  error,
+  className,
+}: {
+  title: string;
+  error: unknown;
+  className?: string | undefined;
+}) {
+  const { t } = useTranslation();
+  const { message } = describeError(error, t);
+  return (
+    <Banner tone="danger" role="alert" className={className}>
+      <strong>{title}</strong> {message}
+    </Banner>
   );
 }

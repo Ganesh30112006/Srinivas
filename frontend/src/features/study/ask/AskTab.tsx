@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { Link, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { isApiError } from '@/api/errors';
+import { describeError } from '@/api/describeError';
 import { mutationKeys } from '@/api/queryKeys';
 import type { AskResponse } from '@/api/types';
 import { paths } from '@/app/paths';
@@ -60,6 +60,7 @@ function Citations({ lectureId, ids }: { lectureId: string; ids: readonly string
 export function AskTab() {
   const { lectureId = '' } = useParams();
   const { t } = useTranslation('study');
+  const { t: tc } = useTranslation();
   const ask = useAsk(lectureId);
   // The conversation lives in the mutation cache: it survives switching tabs, no extra store.
   const thread = useMutationState({
@@ -107,9 +108,8 @@ export function AskTab() {
                 {entry.status === 'pending' && <p role="status">{t('ask.thinking')}</p>}
                 {entry.status === 'error' && (
                   <p role="alert">
-                    {isApiError(entry.error) && entry.error.isRateLimited
-                      ? t('ask.errors.rateLimited')
-                      : t('ask.errors.generic')}
+                    <strong>{t('ask.errors.generic')}</strong>{' '}
+                    {describeError(entry.error, tc).message}
                   </p>
                 )}
                 {entry.status === 'success' && entry.data !== undefined && (

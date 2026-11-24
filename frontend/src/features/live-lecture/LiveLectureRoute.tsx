@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { CircleCheck, FileQuestion, Mic } from 'lucide-react';
+import { CircleCheck, Mic } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
@@ -102,10 +102,13 @@ function LiveScreen({ lectureId }: { lectureId: string }) {
     );
   }
   if (lecture.isError) {
-    return isApiError(lecture.error) && lecture.error.isNotFound ? (
-      <EmptyState icon={FileQuestion} title={t('connectionBanner.notFound')} />
-    ) : (
-      <ErrorState title={tc('loading')} onRetry={() => void lecture.refetch()} />
+    const missing = isApiError(lecture.error) && lecture.error.isNotFound;
+    return (
+      <ErrorState
+        title={missing ? t('connectionBanner.notFound') : t('loadError')}
+        error={lecture.error}
+        onRetry={() => void lecture.refetch()}
+      />
     );
   }
 

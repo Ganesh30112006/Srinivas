@@ -188,8 +188,15 @@
   color: var(--color-accent);
 }
 
-.toastTitle {
+.toastText {
   flex: 1;
+  min-width: 0;
+}
+
+.toastDescription {
+  margin-top: var(--space-0-5);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
 }
 
 @keyframes fade {

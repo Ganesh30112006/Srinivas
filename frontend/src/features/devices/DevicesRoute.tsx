@@ -42,7 +42,11 @@ export function DevicesRoute() {
       {devices.isPending ? (
         <GridSkeleton />
       ) : devices.isError ? (
-        <ErrorState title={t('errorTitle')} onRetry={() => void devices.refetch()} />
+        <ErrorState
+          title={t('errorTitle')}
+          error={devices.error}
+          onRetry={() => void devices.refetch()}
+        />
       ) : devices.data.length === 0 ? (
         <EmptyState
           icon={Cpu}
@@ -76,7 +80,11 @@ export function DeviceDetailRoute() {
     return isApiError(device.error) && device.error.isNotFound ? (
       <EmptyState icon={FileQuestion} title={t('notFoundTitle')} action={back} />
     ) : (
-      <ErrorState title={t('errorTitle')} onRetry={() => void device.refetch()} />
+      <ErrorState
+        title={t('errorTitle')}
+        error={device.error}
+        onRetry={() => void device.refetch()}
+      />
     );
   }
   const d = device.data;

@@ -25,7 +25,9 @@
     "regenerateConfirmBody": "Replaces the current notes, including your edits.",
     "regenerateConfirm": "Regenerate",
     "regenerateStarted": "Regenerating notes…",
-    "emptySections": "These notes have no sections yet."
+    "emptySections": "These notes have no sections yet.",
+    "regenerateFailed": "Couldn't start regenerating the notes.",
+    "publishFailed": "Couldn't publish the notes."
   },
   "editor": {
     "title": "Editing notes",
@@ -51,7 +53,7 @@
       "atLeastOne": "Keep at least one section."
     },
     "errors": {
-      "generic": "Couldn't save the notes. Your edits are still here — try again."
+      "generic": "Couldn't save the notes. Your edits are still here."
     }
   },
   "summary": {
@@ -113,8 +115,7 @@
       "long": "Keep your question under 500 characters."
     },
     "errors": {
-      "rateLimited": "You're asking quickly. Wait a moment and try again.",
-      "generic": "Couldn't get an answer. Please try again."
+      "generic": "Couldn't get an answer."
     },
     "retry": "Ask again"
   },
