@@ -270,6 +270,10 @@
         "paused": {
           "description": "Capture paused on the device (status stays 'recording'). Optional, default false.",
           "type": "boolean"
+        },
+        "stopped": {
+          "description": "The device confirmed Stop; status stays 'recording' until the transcript is finished. Optional, default false.",
+          "type": "boolean"
         }
       }
     },

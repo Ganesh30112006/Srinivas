@@ -92,6 +92,9 @@ class Lecture(Model):
     device_id: uuid.UUID | None
     created_at: datetime
     paused: bool = Field(description="Capture is paused on the device; status stays 'recording'.")
+    stopped: bool = Field(
+        description="The device confirmed Stop; status stays 'recording' until the transcript is finished."
+    )
     audio_available: bool = Field(description="False once the retention policy deleted the audio.")
 
 

@@ -53,6 +53,7 @@ async def lecture_views(db: AsyncSession, lectures: list[Lecture]) -> list[schem
                 device_id=lecture.device_id,
                 created_at=lecture.created_at,
                 paused=lecture.paused,
+                stopped=lecture.stop_received,
                 audio_available=lecture.audio_purged_at is None,
             )
         )

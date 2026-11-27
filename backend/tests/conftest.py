@@ -15,9 +15,13 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.config import Settings
 from app.db.models import Base
 
 os.environ.setdefault("COOKIE_SECURE", "false")
+# Tests use their own database and fake Redis: never a developer's backend/.env (a local demo
+# stack's REDIS_URL or AWS settings would leak in).
+Settings.model_config["env_file"] = None
 
 
 def _to_asyncpg(url: str) -> str:

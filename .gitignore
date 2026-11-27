@@ -20,6 +20,7 @@ eval/data/
 
 # Firmware
 firmware/**/build/
+firmware/**/build-*/
 firmware/**/managed_components/
 firmware/**/sdkconfig
 firmware/**/sdkconfig.old
@@ -32,9 +33,13 @@ firmware/**/nvs_*.bin
 *.pem
 *.key
 backend/.env
+backend/.env.local-services
 
 # OS / editors
 .DS_Store
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# AWS IoT certificates and private keys (tools/aws_iot.py)
+backend/secrets/

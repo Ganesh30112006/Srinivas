@@ -20,6 +20,8 @@ dependencies = [
   "python-multipart>=0.0.12",
   "tzdata>=2024.2",
   "indic-transliteration>=2.3",
+  "aiomqtt>=2.3",
+  "certifi>=2024.8",
 ]
 
 [project.optional-dependencies]

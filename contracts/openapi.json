@@ -3137,6 +3137,11 @@
             "title": "Paused",
             "description": "Capture is paused on the device; status stays 'recording'."
           },
+          "stopped": {
+            "type": "boolean",
+            "title": "Stopped",
+            "description": "The device confirmed Stop; status stays 'recording' until the transcript is finished."
+          },
           "audio_available": {
             "type": "boolean",
             "title": "Audio Available",
@@ -3162,6 +3167,7 @@
           "device_id",
           "created_at",
           "paused",
+          "stopped",
           "audio_available"
         ],
         "title": "Lecture"

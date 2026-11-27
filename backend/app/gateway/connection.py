@@ -6,15 +6,15 @@ import asyncio
 import contextlib
 import json
 import uuid
-from collections.abc import Coroutine
+from collections.abc import Coroutine, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Protocol
 
 import redis.asyncio as aioredis
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from starlette.websockets import WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketDisconnect
 
 from app.audio.frames import CHUNK_MS, FrameError, parse_frame
 from app.audio.storage import AudioStore, chunk_key
@@ -82,10 +82,20 @@ class Registry:
             del self._by_device[device_id]
 
 
+class DeviceSocket(Protocol):
+    """What a device link needs: a Starlette WebSocket, or the MQTT link in app.iot.bridge."""
+
+    async def accept(self) -> None: ...
+    async def receive(self) -> Mapping[str, Any]: ...
+    async def receive_text(self) -> str: ...
+    async def send_text(self, data: str) -> None: ...
+    async def close(self, code: int = 1000, reason: str | None = None) -> None: ...
+
+
 class DeviceConnection:
     def __init__(
         self,
-        ws: WebSocket,
+        ws: DeviceSocket,
         redis: aioredis.Redis,
         store: AudioStore,
         sessions: async_sessionmaker[AsyncSession],
@@ -236,6 +246,19 @@ class DeviceConnection:
         tracker = state.tracker if state else SeqTracker()
         # The ack is also the stop confirmation the device waits for (§1.4.7).
         await self.send(protocol.ack_msg(msg.session_id, tracker.cumulative, tracker.ranges()))
+        # The status stays 'recording' until the transcript is finished (minutes on a CPU), so the
+        # Live page needs to hear now that recording itself has ended.
+        await publish_live(
+            self.redis,
+            str(lecture_id),
+            {
+                "type": "lecture.status",
+                "status": "recording",
+                "stopped": True,
+                "paused": False,
+                "duration_ms": (tracker.max_seq + 1) * CHUNK_MS,
+            },
+        )
         await enqueue_asr(self.redis, str(lecture_id))
         log.info("lecture_stopped", lecture_id=str(lecture_id), last_seq=msg.last_seq)
 

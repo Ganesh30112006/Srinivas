@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     device_vad_enabled: bool = True
     stop_fallback_minutes: int = 10
 
+    # AWS IoT Core bridge (app.iot.main): devices publish to lc/<device_id>/up and subscribe to
+    # lc/<device_id>/down. Certificates come from `python -m tools.aws_iot backend`.
+    iot_endpoint: str = ""  # <prefix>-ats.iot.<region>.amazonaws.com
+    iot_client_id: str = "lc-backend"
+    iot_cert_file: Path = Path("secrets/iot/lc-backend/cert.pem")
+    iot_key_file: Path = Path("secrets/iot/lc-backend/private.key")
+    iot_topic_prefix: str = "lc"
+
     # ASR (faster-whisper)
     asr_model: str = "small"
     asr_device: str = "cpu"
