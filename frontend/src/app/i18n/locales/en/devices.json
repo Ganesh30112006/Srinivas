@@ -22,7 +22,8 @@
     "micStatus": "Microphone",
     "pending": "Audio chunks waiting to upload",
     "gain": "Microphone gain",
-    "vad": "Voice detection"
+    "vad": "Voice detection",
+    "network": "Wi-Fi network"
   },
   "signal": {
     "excellent": "Excellent",
@@ -105,5 +106,21 @@
     "save": "Save lecturers",
     "saved": "Lecturers updated.",
     "error": "Couldn't update the lecturers."
+  },
+  "wifi": {
+    "heading": "Change Wi-Fi",
+    "intro": "Send the recorder a new Wi-Fi network. It restarts and joins it within about a minute. If it can't, it goes back to the network it is on now.",
+    "ssid": "Network name",
+    "password": "Password",
+    "passwordHint": "Leave empty for an open network.",
+    "ssidRequired": "Enter the network name.",
+    "ssidTooLong": "Network names have at most 32 characters.",
+    "passwordLength": "Wi-Fi passwords have 8 to 63 characters.",
+    "submit": "Send to recorder",
+    "sent": "Sent. The recorder is restarting to join {{ssid}}.",
+    "error": "Couldn't change the Wi-Fi.",
+    "offline": "The recorder is offline. Turn it on to change its Wi-Fi.",
+    "recording": "Stop the recording before changing the Wi-Fi.",
+    "unknown": "Unknown"
   }
 }

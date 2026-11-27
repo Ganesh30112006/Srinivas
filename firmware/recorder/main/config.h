@@ -2,6 +2,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #define WIFI_MAX_NETWORKS 3
 
@@ -32,6 +33,9 @@ bool config_uses_iot(const device_config_t *cfg);
 /* Puts a network first in the saved list (replacing one with the same SSID); `forget_others`
  * drops the rest. Written to NVS; takes effect after a restart. */
 bool config_save_wifi(const char *ssid, const char *pass, bool forget_others);
+
+/* Lower-case `in` and turn curly apostrophes into ' (iPhone hotspot names), for loose matching. */
+void config_ssid_fold(const char *in, char *out, size_t size);
 
 extern device_config_t g_config;
 

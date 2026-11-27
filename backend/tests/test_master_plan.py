@@ -492,3 +492,37 @@ def test_device_lecturer_lists_are_validated(api) -> None:  # type: ignore[no-un
     for bad in (str(uuid.uuid4()), str(seed.student_id)):
         response = client.put(f"/devices/{device_id}/lecturers", json={"lecturer_ids": [bad]}, headers=admin)
         assert response.status_code == 422 and response.json()["code"] == "unknown_lecturer"
+
+
+def test_lecturer_changes_device_wifi(api, sessions_factory, redis_server) -> None:  # type: ignore[no-untyped-def]
+    client, seed, _ = api
+    url = f"/devices/{seed.device_id}/wifi"
+    body = {"ssid": "Lab-2G", "password": "lab-pass-123"}
+
+    student = login(client, "student")
+    assert client.post(url, json=body, headers=student).status_code == 403
+
+    headers = login(client, "lecturer")
+    offline = client.post(url, json=body, headers=headers)
+    assert offline.status_code == 409 and offline.json()["code"] == "device_offline"
+    assert client.post(url, json={"ssid": "Lab", "password": "short"}, headers=headers).status_code == 422
+    assert client.post(url, json={"ssid": "   ", "password": ""}, headers=headers).status_code == 422
+
+    set_device(sessions_factory, seed.device_id, online=True, last_status={"recording": True})
+    busy = client.post(url, json=body, headers=headers)
+    assert busy.status_code == 409 and busy.json()["code"] == "device_recording"
+
+    set_device(sessions_factory, seed.device_id, last_status={"recording": False, "wifi_ssid": "Old"})
+    listener = fakeredis.FakeRedis(server=redis_server, decode_responses=True).pubsub()
+    listener.subscribe(f"device:{seed.device_id}")
+    listener.get_message(timeout=1)
+    accepted = client.post(url, json=body, headers=headers)
+    assert accepted.status_code == 202, accepted.text
+    assert accepted.json()["wifi_ssid"] == "Old"
+    message = None
+    for _ in range(20):
+        message = listener.get_message(timeout=0.2)
+        if message is not None:
+            break
+    assert message is not None
+    assert json.loads(message["data"]) == {"type": "wifi", "ssid": "Lab-2G", "password": "lab-pass-123"}

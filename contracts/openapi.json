@@ -2427,6 +2427,90 @@
         }
       }
     },
+    "/devices/{device_id}/wifi": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Change Wifi",
+        "description": "Lecturer (of this device) or admin: send the recorder a Wi-Fi network to switch to. It keeps\nthe networks it already knows, so it falls back to them if the new one does not work. The\npassword goes to the device over its TLS link and is never stored or logged.",
+        "operationId": "change_wifi",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Device Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceWifi"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Device"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -2644,6 +2728,18 @@
           "vad_enabled": {
             "type": "boolean",
             "title": "Vad Enabled"
+          },
+          "wifi_ssid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wifi Ssid",
+            "description": "Wi-Fi network the device is on; null when offline."
           }
         },
         "type": "object",
@@ -2798,6 +2894,29 @@
         },
         "type": "object",
         "title": "DeviceUpdate"
+      },
+      "DeviceWifi": {
+        "properties": {
+          "ssid": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Ssid"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 63,
+            "title": "Password",
+            "description": "8-63 characters, or empty for an open network. Sent to the device, never stored.",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "ssid"
+        ],
+        "title": "DeviceWifi"
       },
       "ErrorResponse": {
         "properties": {

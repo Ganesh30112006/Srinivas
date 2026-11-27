@@ -75,6 +75,7 @@ class Status(_Msg):
     level_dbfs: float | None = Field(default=None, ge=-120, le=0)
     mic_ok: bool | None = None
     paused: bool = False
+    wifi_ssid: str | None = Field(default=None, max_length=32)
 
 
 DeviceMessage = Annotated[Start | Resume | Stop | Pause | Status, Field(discriminator="type")]
@@ -101,6 +102,12 @@ def started_msg(lecture_id: uuid.UUID, session_id: uuid.UUID) -> dict[str, objec
 def command_msg(action: str, lecture_id: uuid.UUID) -> dict[str, object]:
     """Server → device: the web Live page pressed Start/Pause/Resume/Stop (same effect as the buttons)."""
     return {"type": "command", "action": action, "lecture_id": str(lecture_id)}
+
+
+def wifi_msg(ssid: str, password: str) -> dict[str, object]:
+    """Server → device: join this Wi-Fi network. The device saves it in front of its other
+    networks and restarts; if it can't join, it falls back to the networks it already knew."""
+    return {"type": "wifi", "ssid": ssid, "password": password}
 
 
 def error_msg(code: str, message: str) -> dict[str, object]:

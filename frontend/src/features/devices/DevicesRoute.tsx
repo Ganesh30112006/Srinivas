@@ -12,6 +12,7 @@ import { useCurrentUser } from '@/features/auth/api';
 import { useDevice, useDevices } from './api';
 import { BufferMeter, DeviceCard, LastSeen, SignalStrength } from './DeviceCard';
 import { DeviceLecturersForm, DeviceSettingsForm } from './DeviceSettings';
+import { DeviceWifiForm } from './DeviceWifi';
 import { RegisterDeviceDialog } from './RegisterDeviceDialog';
 import styles from './Devices.module.css';
 
@@ -102,6 +103,8 @@ export function DeviceDetailRoute() {
           <dd>
             <SignalStrength rssi={d.wifi_rssi} />
           </dd>
+          <dt>{t('fields.network')}</dt>
+          <dd>{d.wifi_ssid ?? t('wifi.unknown')}</dd>
           <dt>{t('fields.lastSeen')}</dt>
           <dd>
             <LastSeen iso={d.last_seen_at} />
@@ -145,6 +148,7 @@ export function DeviceDetailRoute() {
         </dl>
         <BufferMeter label={t('fields.psram')} pct={d.psram_buffer_pct} />
         <BufferMeter label={t('fields.flash')} pct={d.flash_buffer_pct} />
+        <DeviceWifiForm device={d} />
         {user?.role === 'admin' && (
           <>
             <DeviceSettingsForm device={d} />

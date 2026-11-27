@@ -76,7 +76,9 @@ function LiveScreen({ lectureId }: { lectureId: string }) {
 
   const status = session.lectureStatus ?? lecture.data.status;
   const paused = session.lectureStatus === null ? lecture.data.paused : session.paused;
-  const stopped = session.lectureStatus === null ? lecture.data.stopped : session.stopped;
+  // Once the device's stop is stored it never reverts while recording, so the REST flag also wins
+  // over replayed duration ticks that predate it.
+  const stopped = status === 'recording' && (lecture.data.stopped || session.stopped);
   const isLecturer = user !== null && user.role !== 'student';
   const canControl = canEditLecture(user, lecture.data);
   const ended = status === 'completed' || status === 'processing' || status === 'failed';

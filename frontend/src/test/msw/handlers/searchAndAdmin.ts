@@ -203,6 +203,31 @@ export const adminHandlers = [
     return json<Device>(devicesView().find((d) => d.id === device.id) ?? publicDevice(device));
   }),
 
+  http.post(`${API}/devices/:device_id/wifi`, async ({ params, request }) => {
+    await latency();
+    const guard = requireUser('lecturer', 'admin');
+    if (guard.denied) return guard.denied;
+    const csrf = csrfFailure(request);
+    if (csrf !== null) return csrf;
+    const device = devicesView().find((d) => d.id === param(params, 'device_id'));
+    const raw = getDb().devices.find((d) => d.id === param(params, 'device_id'));
+    if (
+      device === undefined ||
+      raw === undefined ||
+      (guard.user.role !== 'admin' && !raw.assignedTo.includes(guard.user.id))
+    ) {
+      return error(404, 'device_not_found', 'This device does not exist.');
+    }
+    const parsed = await body(
+      request,
+      z.object({ ssid: z.string().min(1).max(32), password: z.string().max(63) }),
+    );
+    if ('invalid' in parsed) return parsed.invalid;
+    if (!device.online) return error(409, 'device_offline', 'The recorder is offline.');
+    if (device.recording) return error(409, 'device_recording', 'Stop the recording first.');
+    return json<Device>(device, 202);
+  }),
+
   http.get(`${API}/system`, async () => {
     await latency();
     const guard = requireUser('admin');

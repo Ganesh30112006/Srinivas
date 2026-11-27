@@ -1,5 +1,6 @@
 #include "net.h"
 
+#include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 
@@ -15,6 +16,7 @@
 #include "esp_netif.h"
 #include "esp_netif_sntp.h"
 #include "esp_random.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "esp_websocket_client.h"
 #include "mqtt_client.h"
@@ -396,6 +398,7 @@ static bool send_status(device_state_t state) {
     cJSON_AddNumberToObject(m, "level_dbfs", (double)g_facts.level_db10 / 10.0 - 90.0);
     if (s.active && !s.stopped) cJSON_AddBoolToObject(m, "mic_ok", !g_facts.mic_silent);
     cJSON_AddBoolToObject(m, "paused", s.active && !s.stopped && s.paused);
+    cJSON_AddStringToObject(m, "wifi_ssid", net_wifi_ssid());
     return send_json(m);
 }
 
@@ -438,6 +441,39 @@ static struct {
     uint8_t id[16];
     uint32_t sent_at;
 } s_stop;
+
+/* The name as the access point broadcasts it, if a visible network matches `typed` loosely. */
+static void ssid_resolve(const char *typed, char *out, size_t size) {
+    strlcpy(out, typed, size);
+    char want[72], have[72];
+    config_ssid_fold(typed, want, sizeof want);
+    /* A network the recorder already knows (iPhone hotspots don't always show up in a scan). */
+    for (int i = 0; i < g_config.wifi_count; i++) {
+        config_ssid_fold(g_config.wifi[i].ssid, have, sizeof have);
+        if (strcmp(have, want) == 0) strlcpy(out, g_config.wifi[i].ssid, size);
+    }
+    const wifi_scan_config_t scan = {.show_hidden = false};
+    if (esp_wifi_scan_start(&scan, true) != ESP_OK) return;
+    uint16_t n = 20;
+    wifi_ap_record_t *aps = calloc(n, sizeof *aps);
+    if (aps == NULL) {
+        esp_wifi_clear_ap_list();
+        return;
+    }
+    if (esp_wifi_scan_get_ap_records(&n, aps) == ESP_OK) {
+        for (uint16_t i = 0; i < n; i++) {
+            if (strcmp((const char *)aps[i].ssid, typed) == 0) break; /* exact match wins */
+            config_ssid_fold((const char *)aps[i].ssid, have, sizeof have);
+            if (strcmp(have, want) == 0) strlcpy(out, (const char *)aps[i].ssid, size);
+        }
+    }
+    free(aps);
+}
+
+static void restart_cb(void *arg) {
+    (void)arg;
+    esp_restart();
+}
 
 static void handle_message(const char *text) {
     cJSON *m = cJSON_Parse(text);
@@ -501,6 +537,22 @@ static void handle_message(const char *text) {
         const cJSON *lid = cJSON_GetObjectItemCaseSensitive(m, "lecture_id");
         if (cJSON_IsString(action) && cJSON_IsString(lid) && strlen(lid->valuestring) == 36) {
             handle_command(action->valuestring, lid->valuestring);
+        }
+    } else if (strcmp(type->valuestring, "wifi") == 0) {
+        /* Lecturer changed the Wi-Fi from the web app. Saved in front of the known networks, so
+           if it fails after the restart the rotation falls back to the ones that worked. */
+        const cJSON *ssid = cJSON_GetObjectItemCaseSensitive(m, "ssid");
+        const cJSON *pass = cJSON_GetObjectItemCaseSensitive(m, "password");
+        const session_info_t cur = session_info();
+        const bool ok = cJSON_IsString(ssid) && cJSON_IsString(pass) && !(cur.active && !cur.stopped) &&
+                        strlen(ssid->valuestring) <= 32;
+        char name[33] = "";
+        if (ok) ssid_resolve(ssid->valuestring, name, sizeof name);
+        if (ok && config_save_wifi(name, pass->valuestring, false)) {
+            ESP_LOGW(TAG, "new Wi-Fi \"%s\" saved; restarting", name);
+            const esp_timer_create_args_t args = {.callback = restart_cb, .name = "wifi_restart"};
+            esp_timer_handle_t t;
+            if (esp_timer_create(&args, &t) == ESP_OK) esp_timer_start_once(t, 1500 * 1000);
         }
     } else if (strcmp(type->valuestring, "close") == 0) {
         /* MQTT has no close frame: the bridge sends the WebSocket close code as a message. */

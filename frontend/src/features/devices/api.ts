@@ -1,7 +1,7 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import type { Device, DeviceCreate, DeviceUpdate } from '@/api/types';
+import type { Device, DeviceCreate, DeviceUpdate, DeviceWifi } from '@/api/types';
 
 const REFRESH_MS = 15_000;
 
@@ -69,6 +69,18 @@ export function useSetDeviceLecturers(deviceId: string) {
           params: { path: { device_id: deviceId } },
           body: { lecturer_ids: lecturerIds },
         }),
+      ),
+    onSuccess: saved,
+  });
+}
+
+/** Lecturer/admin: send the recorder a Wi-Fi network to switch to (it restarts to join it). */
+export function useChangeWifi(deviceId: string) {
+  const saved = useDeviceSaved();
+  return useMutation({
+    mutationFn: (body: DeviceWifi) =>
+      request(
+        api.POST('/devices/{device_id}/wifi', { params: { path: { device_id: deviceId } }, body }),
       ),
     onSuccess: saved,
   });

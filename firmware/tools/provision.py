@@ -3,7 +3,7 @@
   python firmware/tools/provision.py --port COM3 --device-id <uuid> --token <token> \
       --iot-endpoint <prefix>-ats.iot.ap-south-1.amazonaws.com \
       --cert backend/secrets/iot/<uuid>/cert.pem --key backend/secrets/iot/<uuid>/private.key \
-      [--wifi-ssid NAME --wifi-pass PASSWORD]
+      [--wifi-ssid NAME --wifi-pass PASSWORD]...   (up to 3 networks, tried in this order)
 
 Use --server-url wss://host/ws/device instead of the three --iot-* options for the WebSocket
 gateway. Without --wifi-ssid the recorder starts in Wi-Fi setup mode (its display explains how).
@@ -38,8 +38,8 @@ def main() -> int:
     p.add_argument("--cert", type=Path)
     p.add_argument("--key", type=Path)
     p.add_argument("--server-url")
-    p.add_argument("--wifi-ssid")
-    p.add_argument("--wifi-pass", default="")
+    p.add_argument("--wifi-ssid", action="append", default=[])
+    p.add_argument("--wifi-pass", action="append", default=[])
     p.add_argument("--chip", default="esp32")
     a = p.parse_args()
 
@@ -52,7 +52,10 @@ def main() -> int:
         p.error("--iot-endpoint needs --cert and --key")
     if not use_iot and not a.server_url:
         p.error("give --iot-endpoint (AWS IoT Core) or --server-url (WebSocket gateway)")
-    if a.wifi_pass and len(a.wifi_pass) < 8:
+    if len(a.wifi_ssid) > 3 or len(a.wifi_pass) > len(a.wifi_ssid):
+        p.error("give up to 3 --wifi-ssid, each followed by its --wifi-pass")
+    passwords = a.wifi_pass + [""] * (len(a.wifi_ssid) - len(a.wifi_pass))
+    if any(0 < len(pw) < 8 for pw in passwords):
         p.error("a WPA2 password has at least 8 characters")
     for f in (a.cert, a.key):
         if f is not None and not f.is_file():
@@ -66,8 +69,9 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory() as tmp:
         rows: list[list[str]] = [["key", "type", "encoding", "value"], ["lc_cfg", "namespace", "", ""]]
-        if a.wifi_ssid:
-            rows += [["wifi_ssid", "data", "string", a.wifi_ssid], ["wifi_pass", "data", "string", a.wifi_pass]]
+        for i, (ssid, pw) in enumerate(zip(a.wifi_ssid, passwords, strict=True)):
+            n = "" if i == 0 else str(i)
+            rows += [[f"wifi_ssid{n}", "data", "string", ssid], [f"wifi_pass{n}", "data", "string", pw]]
         rows += [["device_id", "data", "string", device_id], ["device_token", "data", "string", a.token]]
         if use_iot:
             rows += [
@@ -86,7 +90,7 @@ def main() -> int:
         subprocess.run([sys.executable, "-m", "esptool", "--chip", a.chip, "-p", a.port, "-b", "460800",
                         "write_flash", NVS_OFFSET, str(bin_path)], check=True)
     print(f"Provisioned {device_id} ({'AWS IoT Core' if use_iot else a.server_url}); "
-          f"Wi-Fi: {a.wifi_ssid or 'none, the recorder starts in setup mode'}.")
+          f"Wi-Fi: {', '.join(a.wifi_ssid) or 'none, the recorder starts in setup mode'}.")
     return 0
 
 

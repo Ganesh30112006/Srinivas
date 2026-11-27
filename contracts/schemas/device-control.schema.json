@@ -38,6 +38,9 @@
     },
     {
       "$ref": "#/$defs/command"
+    },
+    {
+      "$ref": "#/$defs/wifi"
     }
   ],
   "$defs": {
@@ -236,6 +239,11 @@
         "paused": {
           "description": "Capture paused (optional, default false).",
           "type": "boolean"
+        },
+        "wifi_ssid": {
+          "description": "Wi-Fi network the device is on (optional).",
+          "type": "string",
+          "maxLength": 32
         }
       }
     },
@@ -418,6 +426,31 @@
         },
         "lecture_id": {
           "$ref": "#/$defs/uuid"
+        }
+      }
+    },
+    "wifi": {
+      "description": "Server → device: a lecturer changed the Wi-Fi in the web app. Saved in front of the known networks; the device restarts and falls back to the others if it cannot join.",
+      "type": "object",
+      "required": [
+        "type",
+        "ssid",
+        "password"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "wifi"
+        },
+        "ssid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "password": {
+          "type": "string",
+          "maxLength": 63,
+          "description": "Empty for an open network, otherwise 8–63 characters."
         }
       }
     }

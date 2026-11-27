@@ -77,6 +77,23 @@ bool config_uses_iot(const device_config_t *cfg) {
     return cfg->iot_endpoint[0] != '\0' && cfg->iot_cert != NULL && cfg->iot_key != NULL;
 }
 
+/* Fold case and turn the curly apostrophe iPhones put in hotspot names (U+2019) into ' so a name
+   typed on a laptop keyboard still matches. */
+void config_ssid_fold(const char *in, char *out, size_t size) {
+    size_t o = 0;
+    for (size_t i = 0; in[i] != '\0' && o + 1 < size; i++) {
+        const unsigned char c = (unsigned char)in[i];
+        if (c == 0xE2 && (unsigned char)in[i + 1] == 0x80 &&
+            ((unsigned char)in[i + 2] == 0x98 || (unsigned char)in[i + 2] == 0x99)) {
+            out[o++] = '\'';
+            i += 2;
+        } else {
+            out[o++] = (char)(c >= 'A' && c <= 'Z' ? c + 32 : c);
+        }
+    }
+    out[o] = '\0';
+}
+
 bool config_save_wifi(const char *ssid, const char *pass, bool forget_others) {
     if (ssid == NULL || ssid[0] == '\0' || strlen(ssid) > 32 || strlen(pass) > 64) return false;
     wifi_network_t list[WIFI_MAX_NETWORKS] = {0};
@@ -86,7 +103,10 @@ bool config_save_wifi(const char *ssid, const char *pass, bool forget_others) {
     count = 1;
     if (!forget_others) {
         for (int i = 0; i < g_config.wifi_count && count < WIFI_MAX_NETWORKS; i++) {
-            if (strcmp(g_config.wifi[i].ssid, ssid) == 0) continue;
+            char a[72], b[72];
+            config_ssid_fold(g_config.wifi[i].ssid, a, sizeof a);
+            config_ssid_fold(ssid, b, sizeof b);
+            if (strcmp(a, b) == 0) continue; /* same network typed differently */
             list[count++] = g_config.wifi[i];
         }
     }

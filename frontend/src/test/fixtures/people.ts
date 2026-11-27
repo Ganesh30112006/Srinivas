@@ -101,6 +101,7 @@ export function buildDevices(now: number, liveLectureId: string): MockDevice[] {
       firmware_version: '1.4.2',
       online: true,
       wifi_rssi: -58,
+      wifi_ssid: 'Campus-Staff',
       psram_buffer_pct: 0,
       flash_buffer_pct: 0,
       recording: false,

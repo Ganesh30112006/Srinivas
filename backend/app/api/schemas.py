@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
 
 Role = Literal["lecturer", "student", "admin"]
 LanguageCode = Literal["en", "te", "hi"]
@@ -306,6 +306,25 @@ class Device(Model):
     pending_chunks: int = Field(description="Audio chunks on the device not yet acknowledged.")
     gain: float = Field(description="Effective microphone gain sent to the device.")
     vad_enabled: bool
+    wifi_ssid: str | None = Field(
+        default=None, description="Wi-Fi network the device is on; null when offline."
+    )
+
+
+class DeviceWifi(Model):
+    ssid: str = Field(min_length=1, max_length=32, pattern=r"\S")
+    password: str = Field(
+        default="",
+        max_length=63,
+        description="8-63 characters, or empty for an open network. Sent to the device, never stored.",
+    )
+
+    @field_validator("password")
+    @classmethod
+    def _wpa_length(cls, value: str) -> str:
+        if value and len(value) < 8:
+            raise ValueError("A Wi-Fi password has at least 8 characters.")
+        return value
 
 
 class DeviceUpdate(Model):

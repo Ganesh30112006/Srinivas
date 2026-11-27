@@ -491,6 +491,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/{device_id}/wifi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Wifi
+         * @description Lecturer (of this device) or admin: send the recorder a Wi-Fi network to switch to. It keeps
+         *     the networks it already knows, so it falls back to them if the new one does not work. The
+         *     password goes to the device over its TLS link and is never stored or logged.
+         */
+        post: operations["change_wifi"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -606,6 +628,11 @@ export interface components {
             gain: number;
             /** Vad Enabled */
             vad_enabled: boolean;
+            /**
+             * Wifi Ssid
+             * @description Wi-Fi network the device is on; null when offline.
+             */
+            wifi_ssid?: string | null;
         };
         /** DeviceCreate */
         DeviceCreate: {
@@ -648,6 +675,17 @@ export interface components {
             gain?: number | null;
             /** Vad Enabled */
             vad_enabled?: boolean | null;
+        };
+        /** DeviceWifi */
+        DeviceWifi: {
+            /** Ssid */
+            ssid: string;
+            /**
+             * Password
+             * @description 8-63 characters, or empty for an open network. Sent to the device, never stored.
+             * @default
+             */
+            password: string;
         };
         /** ErrorResponse */
         ErrorResponse: {
@@ -3003,6 +3041,68 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Device"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_wifi: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceWifi"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -49,6 +49,7 @@ export type Flashcard = Schemas['Flashcard'];
 export type FlashcardSet = Schemas['FlashcardSet'];
 export type RevisionNotes = Schemas['RevisionNotes'];
 export type DeviceUpdate = Schemas['DeviceUpdate'];
+export type DeviceWifi = Schemas['DeviceWifi'];
 export type DeviceLecturers = Schemas['DeviceLecturers'];
 export type ProfileUpdate = Schemas['ProfileUpdate'];
 export type PasswordChange = Schemas['PasswordChange'];

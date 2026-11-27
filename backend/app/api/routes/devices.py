@@ -10,11 +10,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import schemas
-from app.api.deps import AdminUser, Db, LecturerUser
+from app.api.deps import AdminUser, Ctx, Db, LecturerUser
 from app.api.errors import ApiError, not_found
 from app.api.security import new_token, token_hash
 from app.config import get_settings
 from app.db.models import AuditLog, Device, DeviceLecturer, Lecture, LectureStatus, Role, User
+from app.events import send_device_control
+from app.gateway.protocol import wifi_msg
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 E: dict[int | str, dict[str, Any]] = {
@@ -26,6 +28,10 @@ E: dict[int | str, dict[str, Any]] = {
 
 def _opt_float(value: object) -> float | None:
     return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
+
+
+def _opt_str(value: object) -> str | None:
+    return value if isinstance(value, str) and value else None
 
 
 def _opt_bool(value: object) -> bool | None:
@@ -78,6 +84,7 @@ async def device_views(db: AsyncSession, devices: list[Device]) -> list[schemas.
                 pending_chunks=int(status.get("pending_chunks", 0)),
                 gain=d.gain if d.gain is not None else settings.device_gain,
                 vad_enabled=d.vad_enabled if d.vad_enabled is not None else settings.device_vad_enabled,
+                wifi_ssid=_opt_str(status.get("wifi_ssid")) if d.online else None,
             )
         )
     return out
@@ -175,3 +182,24 @@ async def update_device(
     db.add(AuditLog(actor_id=admin.id, action="device.update", target=str(device_id)))
     await db.commit()
     return (await device_views(db, [device]))[0]
+
+
+@router.post("/{device_id}/wifi", response_model=schemas.Device, status_code=202, responses=E)
+async def change_wifi(
+    device_id: uuid.UUID, body: schemas.DeviceWifi, user: LecturerUser, db: Db, ctx: Ctx
+) -> schemas.Device:
+    """Lecturer (of this device) or admin: send the recorder a Wi-Fi network to switch to. It keeps
+    the networks it already knows, so it falls back to them if the new one does not work. The
+    password goes to the device over its TLS link and is never stored or logged."""
+    device = next((d for d in await _visible_devices(db, user) if d.id == device_id), None)
+    if device is None:
+        raise not_found("device")
+    view = (await device_views(db, [device]))[0]
+    if not view.online:
+        raise ApiError(409, "device_offline", "The recorder is offline. Turn it on and try again.")
+    if view.recording or view.current_lecture_id is not None:
+        raise ApiError(409, "device_recording", "Stop the recording before changing the Wi-Fi network.")
+    await send_device_control(ctx.redis, str(device.id), wifi_msg(body.ssid, body.password))
+    db.add(AuditLog(actor_id=user.id, action="device.wifi", target=str(device_id)))
+    await db.commit()
+    return view

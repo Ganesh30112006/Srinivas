@@ -55,7 +55,7 @@ Each message has a `type`.
 | `resume` | `session_id`, `lecture_id` (uuid\|null) | Before sending backlog frames of a session that isn't the connection's current one (for example, after a reboot). |
 | `stop` | `session_id`, `last_seq` (int, −1 if no chunk) | The Stop button was pressed. Sent once the device has queued every chunk. |
 | `pause` | `session_id`, `paused` (bool) | Capture was paused (`true`) or resumed (`false`), by the Pause button or a `command`. No chunks are produced while paused, so `seq` stays contiguous and lecture time excludes the pause. |
-| `status` | `wifi_rssi` (int dBm), `psram_buffer_pct` (0–100), `flash_buffer_pct` (0–100), `uptime_s`, `recording` (bool), `state` (device state name), `pending_chunks` (int); optional `level_dbfs` (−120–0), `mic_ok` (bool), `paused` (bool) | Every 1 s while recording (for the live level meter), every 5 s otherwise. A paused device reports `recording: true, paused: true`. |
+| `status` | `wifi_rssi` (int dBm), `psram_buffer_pct` (0–100), `flash_buffer_pct` (0–100), `uptime_s`, `recording` (bool), `state` (device state name), `pending_chunks` (int); optional `level_dbfs` (−120–0), `mic_ok` (bool), `paused` (bool), `wifi_ssid` (str) | Every 1 s while recording (for the live level meter), every 5 s otherwise. A paused device reports `recording: true, paused: true`. |
 
 **Server → device**
 
@@ -66,6 +66,7 @@ Each message has a `type`.
 | `lecture.assign` | `lecture_id`, `title` | A lecture was prepared for this device in the web app; the OLED shows the title. |
 | `lecture.started` | `lecture_id`, `session_id` | The session is bound to a lecture (prepared, or "Untitled – <date time>"). |
 | `command` | `action` (`start\|pause\|resume\|stop`), `lecture_id` | Pressed on the web Live page. The device acts as if its own button was pressed (start only when idle, for that lecture; pause/resume/stop only for the current session of that lecture) and reports the result with `start`/`pause`/`stop`. |
+| `wifi` | `ssid`, `password` | A lecturer changed the Wi-Fi on the device page (refused by the API while offline or recording). The device saves it in front of its other networks, restarts and joins it; if it can't, it falls back to the networks it knew. The password is never stored on the server. |
 | `error` | `code`, `message` | `auth_failed`, `protocol_error`, `unknown_session`, `consent_required`, `internal` |
 
 **Close codes:**
