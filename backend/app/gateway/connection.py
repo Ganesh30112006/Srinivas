@@ -425,7 +425,7 @@ class DeviceConnection:
                 async with asyncio.timeout(PUBSUB_CLOSE_TIMEOUT_S):
                     await pubsub.unsubscribe()
             with contextlib.suppress(Exception):
-                await pubsub.aclose()  # type: ignore[no-untyped-call]
+                await pubsub.aclose()  # type: ignore[no-untyped-call,unused-ignore]
 
     async def _on_disconnect(self) -> None:
         if self.device_id is None:
