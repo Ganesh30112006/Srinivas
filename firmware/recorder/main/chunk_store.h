@@ -1,9 +1,13 @@
 /*
- * One buffer, one mechanism (brief §2): every chunk lives in the PSRAM ring or the flash log
+ * One buffer, one mechanism (brief §2): every chunk lives in the RAM ring or the offline log
  * until an ACK covers it. Live streaming and offline sync are the same code path.
  *
- * Locks: `ring` (fast, shared with the audio task) and `flash` (slow: erase/write). The audio task
- * only ever takes the ring lock, so a flash erase can never block audio capture. When both are
+ * The ring is in PSRAM on boards that have it (PCM chunks), otherwise in internal RAM as ADPCM
+ * (CONFIG_LC_RING_ADPCM). The offline log is a file on the SD card when the board has a card slot
+ * and a card is inserted, otherwise the `audiobuf` flash partition.
+ *
+ * Locks: `ring` (fast, shared with the audio task) and `flash` (slow: log writes). The audio task
+ * only ever takes the ring lock, so a slow write can never block audio capture. When both are
  * needed they are taken in the order ring → flash.
  */
 #pragma once
@@ -13,9 +17,19 @@
 #include <stdint.h>
 #include "esp_err.h"
 #include "lc_ack.h"
+#include "lc_flashlog.h"
 #include "lc_frame.h"
+#include "sdkconfig.h"
 
+#if CONFIG_LC_RING_ADPCM
+#define RING_CODEC LC_CODEC_ADPCM
+#define RING_SLOT_BYTES LC_ADPCM_CHUNK_BYTES
+#define CHUNK_FRAME_MAX (LC_FRAME_HEADER_LEN + LC_FLASHLOG_MAX_PAYLOAD)
+#else
+#define RING_CODEC LC_CODEC_PCM16
+#define RING_SLOT_BYTES LC_PCM_CHUNK_BYTES
 #define CHUNK_FRAME_MAX (LC_FRAME_HEADER_LEN + LC_PCM_CHUNK_BYTES)
+#endif
 
 typedef struct {
     bool from_flash;
@@ -24,6 +38,10 @@ typedef struct {
 } chunk_ref_t;
 
 esp_err_t chunk_store_init(void);
+
+/* Where offline audio goes: "SD", "FLASH" or "NONE"; and how many seconds it holds. */
+const char *chunk_store_medium(void);
+uint32_t chunk_store_capacity_s(void);
 
 /* Highest seq of a session held in the flash log, or -1 (used for reboot recovery). */
 int64_t chunk_store_max_seq(const uint8_t session_id[16]);

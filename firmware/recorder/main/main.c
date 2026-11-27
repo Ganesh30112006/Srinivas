@@ -1,5 +1,5 @@
 /*
- * Lecture Capture recorder (ESP32-S3-DevKitC-1-N8R8, ESP-IDF v5.3+).
+ * Lecture Capture recorder (ESP32 DevKit V1 or ESP32-S3-DevKitC-1 N8R8, ESP-IDF v5.3+; pins in board/board.h).
  * Tasks: audio (core 1, highest), net + spill + ui + buttons (core 0). See firmware/README.md.
  */
 #include "app.h"
@@ -13,6 +13,7 @@
 #include "nvs_flash.h"
 #include "session.h"
 #include "ui.h"
+#include "wifi_setup.h"
 
 static const char *TAG = "main";
 
@@ -27,7 +28,10 @@ void app_main(void) {
     app_init();
     ui_start(); /* LED/OLED first so problems below are visible */
 
-    if (!config_load(&g_config)) {
+    const bool provisioned = config_load(&g_config);
+    /* No saved network, or the main button held while starting: Wi-Fi setup page (never returns). */
+    if (g_config.wifi_count == 0 || wifi_setup_requested()) wifi_setup_run();
+    if (!provisioned) {
         g_facts.fatal = true;
         app_set_error("Not provisioned");
     }

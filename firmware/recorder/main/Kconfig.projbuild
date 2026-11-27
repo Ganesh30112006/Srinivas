@@ -21,11 +21,30 @@ menu "Lecture Capture"
         default ""
 
     config LC_RING_SLOTS
-        int "PSRAM ring slots (500 ms PCM each, 16000 bytes)"
-        range 32 400
-        default 256
+        int "RAM ring slots (500 ms each)"
+        range 4 400
+        default 256 if SPIRAM
+        default 10
         help
-            256 slots = 128 s of PCM in about 3.9 MiB of PSRAM.
+            With PSRAM: 256 PCM slots = 128 s in about 3.9 MiB.
+            Without PSRAM (ESP32 DevKit V1): 10 ADPCM slots = 5 s in 40 KB of internal RAM;
+            older chunks move to the SD card.
+
+    config LC_RING_ADPCM
+        bool "Keep the RAM ring as ADPCM (4 KB per chunk instead of 16 KB)"
+        default n if SPIRAM
+        default y
+        help
+            Boards without PSRAM store and send chunks as IMA-ADPCM (codec 1), which the server
+            accepts on the live path too. It is a quarter of the size and bandwidth of PCM.
+
+    config LC_SD_LOG_CHUNKS
+        int "Offline log on the SD card (500 ms chunks)"
+        range 120 7200
+        default 2400
+        help
+            2400 chunks = 20 minutes, a 9.8 MB file (LCBUF.BIN) on the card. The RAM index costs
+            16 bytes per chunk (38 KB for 2400), which is the real limit on boards without PSRAM.
 
     config LC_OFFLINE_SPILL_AGE_MS
         int "Spill to flash when offline and a chunk is older than (ms)"
@@ -38,6 +57,28 @@ menu "Lecture Capture"
 
     config LC_MAX_IN_FLIGHT
         int "Maximum un-ACKed chunks on the wire"
-        default 40
+        default 40 if SPIRAM
+        default 8
+
+    config LC_LED_COMMON_ANODE
+        bool "Status LED is a common-anode RGB LED (longest leg to 3.3 V)"
+        default n
+        help
+            Leave off for single-colour LEDs and common-cathode RGB LEDs.
+
+    choice LC_AUDIO_SOURCE
+        prompt "Audio source"
+        default LC_AUDIO_SOURCE_MIC
+
+        config LC_AUDIO_SOURCE_MIC
+            bool "INMP441 microphone (I2S)"
+
+        config LC_AUDIO_SOURCE_TEST_CLIP
+            bool "Built-in test clip (no microphone needed)"
+            help
+                Loops a recorded speech clip (main/test_clip.adpcm) in real time instead of
+                reading the microphone, so the whole system can be tested before a microphone is
+                wired. Never use this in a real lecture.
+    endchoice
 
 endmenu

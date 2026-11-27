@@ -1,8 +1,9 @@
 /*
- * Hardware validation: INMP441 → ESP32-S3 I2S → 16 kHz 16-bit mono WAV over the USB console.
+ * Hardware validation: INMP441 → ESP32 I2S → 16 kHz 16-bit mono WAV over the USB console.
  *
- * Wiring (see firmware/README.md): SCK=GPIO4, WS=GPIO5, SD=GPIO6 (100 kΩ to GND), L/R=GND,
- * VDD=3V3 with 100 nF at the mic. Start button on GPIO1 (to GND) records again.
+ * Wiring: pins in firmware/board/board.h. ESP32 DevKit V1: SCK=D26, WS=D25, SD=D33 (100 kΩ to GND);
+ * ESP32-S3: SCK=GPIO4, WS=GPIO5, SD=GPIO6. L/R=GND, VDD=3V3 with 100 nF at the mic. The main
+ * (or Start) button records again. Boards without PSRAM record 5 s instead of 10 s.
  *
  * Output protocol (text, so it survives the console):
  *   LEVEL t=<s> rms=<dBFS> peak=<dBFS>          every 500 ms while recording
@@ -17,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "board.h"
 #include "driver/gpio.h"
 #include "driver/i2s_std.h"
 #include "esp_check.h"
@@ -28,13 +30,21 @@
 #include "mbedtls/base64.h"
 
 #define SAMPLE_RATE 16000
+#if CONFIG_SPIRAM
 #define RECORD_SECONDS 10
+#else
+#define RECORD_SECONDS 5 /* 160 KB in internal RAM */
+#endif
 #define TOTAL_SAMPLES (SAMPLE_RATE * RECORD_SECONDS)
 #define READ_FRAMES 512
-#define PIN_BCLK GPIO_NUM_4
-#define PIN_WS GPIO_NUM_5
-#define PIN_SD GPIO_NUM_6
-#define PIN_START GPIO_NUM_1
+#define PIN_BCLK PIN_I2S_BCLK
+#define PIN_WS PIN_I2S_WS
+#define PIN_SD PIN_I2S_DIN
+#if BOARD_ONE_BUTTON
+#define PIN_START PIN_BTN_MAIN
+#else
+#define PIN_START PIN_BTN_START
+#endif
 #define GAIN_Q8 (16 * 256) /* 24-bit → 16-bit with +24 dB: mic test needs audible speech */
 
 static const char *TAG = "mic_test";
@@ -141,14 +151,10 @@ static void put_le(uint8_t *p, uint32_t v, int bytes) {
     for (int i = 0; i < bytes; i++) p[i] = (uint8_t)(v >> (8 * i));
 }
 
-static void emit_wav(const int16_t *pcm) {
+/* `wav` holds a 44-byte header slot followed by the samples (see app_main): no second copy. */
+static void emit_wav(uint8_t *wav) {
     const uint32_t data_bytes = TOTAL_SAMPLES * 2;
     const size_t total = 44 + data_bytes;
-    uint8_t *wav = heap_caps_malloc(total, MALLOC_CAP_SPIRAM);
-    if (wav == NULL) {
-        ESP_LOGE(TAG, "no PSRAM for WAV buffer");
-        return;
-    }
     memcpy(wav, "RIFF", 4);
     put_le(wav + 4, 36 + data_bytes, 4);
     memcpy(wav + 8, "WAVEfmt ", 8);
@@ -161,7 +167,6 @@ static void emit_wav(const int16_t *pcm) {
     put_le(wav + 34, 16, 2);
     memcpy(wav + 36, "data", 4);
     put_le(wav + 40, data_bytes, 4);
-    memcpy(wav + 44, pcm, data_bytes);
 
     printf("WAV BEGIN %u %08" PRIx32 "\n", (unsigned)total, lc_crc32(wav, total));
     unsigned char line[110];
@@ -174,12 +179,12 @@ static void emit_wav(const int16_t *pcm) {
         if ((off / 57) % 64 == 0) vTaskDelay(1); /* let the console drain */
     }
     printf("WAV END\n");
-    free(wav);
 }
 
 void app_main(void) {
-    int16_t *pcm = heap_caps_malloc(TOTAL_SAMPLES * sizeof(int16_t), MALLOC_CAP_SPIRAM);
-    ESP_ERROR_CHECK(pcm == NULL ? ESP_ERR_NO_MEM : ESP_OK);
+    uint8_t *wav = heap_caps_malloc(44 + TOTAL_SAMPLES * sizeof(int16_t), BOARD_BIG_CAPS);
+    ESP_ERROR_CHECK(wav == NULL ? ESP_ERR_NO_MEM : ESP_OK);
+    int16_t *pcm = (int16_t *)(wav + 44); /* 44 is a multiple of 4: aligned */
     const gpio_config_t button = {
         .pin_bit_mask = 1ULL << PIN_START,
         .mode = GPIO_MODE_INPUT,
@@ -189,13 +194,13 @@ void app_main(void) {
     };
     ESP_ERROR_CHECK(gpio_config(&button));
     i2s_setup();
-    ESP_LOGI(TAG, "PSRAM free: %u bytes", (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    ESP_LOGI(TAG, "%s, recording %d s per take", BOARD_NAME, RECORD_SECONDS);
     for (;;) {
         printf("READY recording %d s in 3 s — speak at ~1 m\n", RECORD_SECONDS);
         vTaskDelay(pdMS_TO_TICKS(3000));
         record(pcm);
-        emit_wav(pcm);
-        printf("PRESS START (GPIO1) to record again\n");
+        emit_wav(wav);
+        printf("PRESS THE %s BUTTON (GPIO%d) to record again\n", BOARD_ONE_BUTTON ? "MAIN" : "START", PIN_START);
         while (gpio_get_level(PIN_START) != 0) vTaskDelay(pdMS_TO_TICKS(20));
         vTaskDelay(pdMS_TO_TICKS(50));
     }

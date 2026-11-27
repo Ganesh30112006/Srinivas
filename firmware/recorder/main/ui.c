@@ -4,20 +4,21 @@
 #include <string.h>
 
 #include "app.h"
+#include "board.h"
+#include "chunk_store.h"
 #include "config.h"
 #include "driver/ledc.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "net.h"
 #include "session.h"
 #include "ssd1306.h"
+#include "wifi_setup.h"
 
-#define PIN_SDA 8
-#define PIN_SCL 9
+#define PIN_SDA PIN_I2C_SDA
+#define PIN_SCL PIN_I2C_SCL
 #define OLED_ADDR 0x3C
-#define PIN_LED_R 16
-#define PIN_LED_G 17
-#define PIN_LED_B 18
 #define TICK_MS 250 /* LED blink resolution; OLED refreshes every 2nd tick (2 Hz) */
 
 static const char *TAG = "ui";
@@ -31,6 +32,7 @@ static const rgb_t OFF = {0, 0, 0};
 static const rgb_t RED = {255, 0, 0};
 static const rgb_t GREEN = {0, 255, 0};
 static const rgb_t BLUE = {0, 0, 255};
+static const rgb_t CYAN = {0, 255, 255};
 static const rgb_t YELLOW = {255, 150, 0}; /* red + green mix, tuned for the 220/100 Ω resistors */
 
 static void led_init(void) {
@@ -60,20 +62,25 @@ static void led_init(void) {
 static void led_set(rgb_t c) {
     const uint8_t duty[3] = {c.r, c.g, c.b};
     for (int i = 0; i < 3; i++) {
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)i, duty[i]); /* common cathode: high = on */
+#if CONFIG_LC_LED_COMMON_ANODE
+        ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)i, 255 - duty[i]); /* common anode: low = on */
+#else
+        ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)i, duty[i]); /* cathode to GND: high = on */
+#endif
         ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)i);
     }
 }
 
 /* LED mirrors the web app's status colours (red rec, blue sync, green ready, yellow no network). */
 static rgb_t led_for(device_state_t st, unsigned tick) {
+    if (wifi_setup_active()) return (tick / 2) % 2 == 0 ? GREEN : OFF; /* slow green blink */
     switch (st) {
         case ST_READY: return GREEN;
         case ST_RECORDING: return RED;
         case ST_RECORDING_OFFLINE: return (tick / 2) % 2 == 0 ? RED : YELLOW; /* 1 Hz alternation */
         case ST_PAUSED: return (tick / 4) % 2 == 0 ? RED : OFF; /* slow red blink: session open, not capturing */
         case ST_SYNCING:
-        case ST_FINALIZING: return BLUE;
+        case ST_FINALIZING: return tick % 2 == 0 ? CYAN : BLUE; /* green flickers: visible with two LEDs */
         case ST_ERROR:
         case ST_WIFI_CONNECTING:
         case ST_SERVER_CONNECTING: return YELLOW;
@@ -94,6 +101,17 @@ static void draw(device_state_t st) {
     char error[40];
     const session_info_t s = session_info();
     ssd1306_clear();
+    if (wifi_setup_active()) {
+        ssd1306_text(0, 0, "WI-FI SETUP", 1);
+        ssd1306_text(0, 2, "On your phone join:", 1);
+        ssd1306_text(0, 3, wifi_setup_ap_name(), 1);
+        snprintf(line, sizeof line, "Password %s", wifi_setup_ap_pass());
+        ssd1306_text(0, 4, line, 1);
+        ssd1306_text(0, 6, "Then open", 1);
+        ssd1306_text(0, 7, "192.168.4.1", 1);
+        if (s_oled_ok && ssd1306_flush() != ESP_OK) ESP_LOGW(TAG, "OLED write failed");
+        return;
+    }
     switch (st) {
         case ST_RECORDING:
         case ST_RECORDING_OFFLINE: {
@@ -103,7 +121,8 @@ static void draw(device_state_t st) {
             ssd1306_text(0, 0, line, 1);
             if (st == ST_RECORDING_OFFLINE) {
                 ssd1306_text(0, 2, "REC (offline)", 1);
-                snprintf(line, sizeof line, "PSRAM %u%% FLASH %u%%", g_facts.psram_pct, g_facts.flash_pct);
+                snprintf(line, sizeof line, "RAM %u%% %s %u%%", g_facts.psram_pct, chunk_store_medium(),
+                         g_facts.flash_pct);
                 ssd1306_text(0, 3, line, 1);
             } else {
                 wifi_bars(line, sizeof line);
@@ -121,7 +140,7 @@ static void draw(device_state_t st) {
                      (unsigned long)(secs / 60 % 60), (unsigned long)(secs % 60));
             ssd1306_text(0, 0, line, 1);
             ssd1306_text(0, 2, "Not recording", 1);
-            ssd1306_text(0, 3, "Press Pause to resume", 1);
+            ssd1306_text(0, 3, BOARD_RESUME_HINT, 1);
             break;
         }
         case ST_SYNCING:
@@ -138,8 +157,11 @@ static void draw(device_state_t st) {
             break;
         case ST_WIFI_CONNECTING:
             ssd1306_text(0, 0, "No Wi-Fi", 1);
-            ssd1306_text(0, 2, g_config.wifi_ssid, 1);
-            ssd1306_text(0, 3, "Start still records", 1);
+            ssd1306_text(0, 2, net_wifi_ssid(), 1);
+            ssd1306_text(0, 3, net_wifi_problem(), 1);
+            ssd1306_text(0, 4, "Start still records", 1);
+            ssd1306_text(0, 6, "Change Wi-Fi: hold", 1);
+            ssd1306_text(0, 7, "button 5 s", 1);
             break;
         case ST_SERVER_CONNECTING:
             wifi_bars(line, sizeof line);
@@ -166,8 +188,15 @@ static void draw(device_state_t st) {
                 ssd1306_text(0, 3, "Prepare a lecture", 1);
                 ssd1306_text(0, 4, "in the web app", 1);
             }
+            snprintf(line, sizeof line, "Offline: %s %lu min", chunk_store_medium(),
+                     (unsigned long)(chunk_store_capacity_s() / 60));
+            ssd1306_text(0, 6, line, 1);
+#if CONFIG_LC_AUDIO_SOURCE_TEST_CLIP
+            ssd1306_text(0, 7, "TEST CLIP, NOT MIC", 1);
+#else
             snprintf(line, sizeof line, "Mic %.4s fw %s", g_config.device_id, FIRMWARE_VERSION);
             ssd1306_text(0, 7, line, 1);
+#endif
             break;
     }
     /* Warnings override the bottom lines: never drop audio without telling the lecturer. */

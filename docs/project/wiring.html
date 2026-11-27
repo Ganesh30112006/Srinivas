@@ -1,0 +1,744 @@
+<title>Recorder Wiring</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column. Six numbered steps, each a breadboard drawing and its wire list, then the power-on checks.
+   The drawings sit on a fixed light panel (like a printed sheet) so wire colours read the same in both themes. */
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --fg: #1b1f24; --muted: #5d6670; --line: #d6dbe1; --accent: #b45309;
+  --warn: #b42318;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121417; --surface: #1a1d21; --fg: #e6e8eb; --muted: #9aa3ad; --line: #30363d; --accent: #f0a63a;
+  --warn: #f87171; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121417; --surface: #1a1d21; --fg: #e6e8eb; --muted: #9aa3ad; --line: #30363d; --accent: #f0a63a;
+  --warn: #f87171; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font); }
+.page { max-width: 1120px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 40px; }
+h1 { font-size: 1.75rem; line-height: 1.2; margin: 0; text-wrap: balance; }
+h2 { font-size: 1.2rem; margin: 0; text-wrap: balance; }
+h2 .n { color: var(--accent); margin-right: 6px; font-variant-numeric: tabular-nums; }
+p { margin: 0; max-width: 72ch; }
+.sub { color: var(--muted); margin-top: 6px; }
+.mono { font-family: var(--mono); font-size: 0.9em; }
+.step { display: grid; gap: 12px; min-width: 0; }
+.figure { background: #eef0f3; border: 1px solid #d3d7dd; border-radius: 10px; overflow-x: auto; }
+.figure svg { display: block; width: 100%; min-width: 900px; height: auto; }
+
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+td:first-child { width: 7.5em; white-space: nowrap; color: var(--muted); }
+.sw { display: inline-block; width: 22px; height: 6px; border-radius: 3px; margin-right: 8px; vertical-align: 2px; box-shadow: 0 0 0 1px rgba(127,127,127,.35); }
+
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; }
+.cols > section { min-width: 0; display: grid; gap: 10px; align-content: start; }
+ul, ol { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+.warn { border-left: 3px solid var(--warn); padding: 10px 14px; background: var(--surface); border-radius: 0 8px 8px 0; }
+.warn strong { color: var(--warn); }
+.later h2 .n { color: var(--muted); }
+.legend { gap: 8px; max-width: 80ch; }
+.legend li::marker { font-weight: 700; color: var(--accent); }
+table.parts td:first-child { width: auto; white-space: normal; color: var(--fg); font-weight: 600; }
+
+svg text { font-family: var(--font); }
+</style>
+
+<div class="page">
+  <header>
+    <h1>Recorder Wiring</h1>
+    <p class="sub">ESP32 DevKit V1 (ESP32-WROOM-32, 30 pins), one breadboard, an SSD1306 display, a MicroSD adapter, LEDs and buttons. Wire steps 1 to 5 now; step 6 is the microphone, for when it arrives. Pins match <span class="mono">firmware/board/board.h</span>.</p>
+    <p class="sub">Hold the board chip-side up with the USB socket on the left. The row that starts <span class="mono">VIN GND D13</span> is then at the top, and the row that starts <span class="mono">3V3 GND D15</span> is at the bottom, as in the drawings. The board is wide: if it covers every hole on one side of your breadboard, run female-to-male jumper wires from its pins instead, or set it across two breadboards.</p>
+    <p class="sub">New to breadboards? Read the first three sections, then wire steps 1 to 6 in order.</p>
+  </header>
+
+  <section class="step">
+    <h2>How a breadboard connects things</h2>
+    <p>You never twist wires together. Two things are connected when their ends sit in holes that are joined inside the breadboard. The numbers in the drawing match the list below it.</p>
+    <div class="figure" role="img" aria-label="Breadboard: each rail row is one long strip; each column of five holes is one connection; the middle gap splits columns; a part's two legs go in different columns; a wire joins a column to a rail.">
+      <svg id="d-bb" viewBox="0 0 1260 470" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <ol class="legend">
+      <li><b>Rails.</b> Each long row along the edge is one strip. The row by the red line is <b>+</b> (3.3 V here) and the row by the blue line is <b>&ndash;</b> (ground). On some long breadboards the line has a break in the middle, which means the rail is cut in two there. Bridge the break with a short wire.</li>
+      <li><b>Columns.</b> Each short column of 5 holes (rows a to e) is one connection.</li>
+      <li><b>The middle gap.</b> Rows f to j form a separate column. Nothing connects across the gap. That is why a module sits across the gap: each pin then gets its own column.</li>
+      <li><b>A part's two legs go in two different columns.</b> This is how every capacitor, resistor and LED is placed.</li>
+      <li><b>Never put both legs in the same column.</b> That shorts the part and it does nothing.</li>
+      <li><b>A wire joins a column to something else.</b> Here a black wire joins a column to the <b>&ndash;</b> rail, so the resistor leg in that column is now on ground too.</li>
+    </ol>
+  </section>
+
+  <section class="step">
+    <h2>The small parts and which way round they go</h2>
+    <p>Two of these parts have a <b>+</b> leg and a <b>&ndash;</b> leg and only work one way round. The other two can go either way.</p>
+    <div class="figure" role="img" aria-label="Electrolytic capacitor: longer leg plus, striped side minus. Ceramic capacitor marked 104: either way. Resistor: either way. LED: longer leg plus, flat side minus.">
+      <svg id="d-parts" viewBox="0 0 1260 320" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="tablewrap"><table class="parts">
+      <thead><tr><th>Part</th><th>How many</th><th>Leg 1 goes to</th><th>Leg 2 goes to</th><th>Why it is there</th></tr></thead>
+      <tbody>
+        <tr><td>100 &micro;F electrolytic</td><td>1</td><td>Longer leg: bottom <b>+</b> rail</td><td>Striped side: bottom <b>&ndash;</b> rail</td><td>Holds 3.3 V steady when Wi-Fi transmits. Any value from 10 to 100 &micro;F works. Step 1.</td></tr>
+        <tr><td>100 nF ceramic, marked 104</td><td>1</td><td>The microphone's VDD column</td><td>The microphone's GND column</td><td>Cleans noise off the microphone's power. Either way round. Step 6.</td></tr>
+        <tr><td>100 k&Omega; resistor (brown black yellow)</td><td>1</td><td>The microphone's SD column</td><td>Top <b>&ndash;</b> rail</td><td>Holds the data line low when the microphone is idle. Either way round. Step 6.</td></tr>
+        <tr><td>220 &Omega; resistor (red red brown)</td><td>3</td><td>The LED's GPIO wire</td><td>The LED's long leg</td><td>Limits the current so neither the LED nor the pin burns out. Step 4.</td></tr>
+        <tr><td>LED</td><td>3</td><td>Long leg: its resistor</td><td>Short leg: bottom <b>&ndash;</b> rail</td><td>Status lights. Step 4.</td></tr>
+        <tr><td>Push button</td><td>1 or 2</td><td>One corner: its GPIO pin</td><td>Opposite corner: top <b>&ndash;</b> rail</td><td>No resistor needed. Step 5.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sub">Many INMP441 modules already have a capacitor and resistor of their own. Adding these as well does no harm.</p>
+  </section>
+
+  <section class="step">
+    <h2>Full wiring at a glance</h2>
+    <p>Every connection in one drawing. It shows what connects to what, not where each part sits on the breadboard. For placement, follow steps 1 to 6.</p>
+    <div class="figure" role="img" aria-label="Overview: display on D21 and D22; SD adapter on D5, D18, D19, D23 and VIN; rails on 3V3 and GND; microphone on D26, D25, D33; LEDs through 220 ohm resistors on RX2, TX2, D4; buttons on D32 and D27.">
+      <svg id="d-all" viewBox="0 0 1260 640" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>ESP32 pin</th><th>GPIO</th><th>Goes to</th><th>Step</th></tr></thead>
+      <tbody>
+        <tr><td>3V3</td><td>&ndash;</td><td>Bottom <b>+</b> rail. A red jumper carries it on to the top <b>+</b> rail.</td><td>1</td></tr>
+        <tr><td>GND (both)</td><td>&ndash;</td><td>Bottom <b>&ndash;</b> rail and top <b>&ndash;</b> rail</td><td>1</td></tr>
+        <tr><td>VIN</td><td>&ndash;</td><td>SD adapter VCC, and nothing else</td><td>3</td></tr>
+        <tr><td>D21</td><td>21</td><td>Display SDA</td><td>2</td></tr>
+        <tr><td>D22</td><td>22</td><td>Display SCL</td><td>2</td></tr>
+        <tr><td>D5</td><td>5</td><td>SD adapter CS</td><td>3</td></tr>
+        <tr><td>D18</td><td>18</td><td>SD adapter SCK</td><td>3</td></tr>
+        <tr><td>D19</td><td>19</td><td>SD adapter MISO</td><td>3</td></tr>
+        <tr><td>D23</td><td>23</td><td>SD adapter MOSI</td><td>3</td></tr>
+        <tr><td>RX2</td><td>16</td><td>220 &Omega;, then the red LED's long leg</td><td>4</td></tr>
+        <tr><td>TX2</td><td>17</td><td>220 &Omega;, then the green LED's long leg</td><td>4</td></tr>
+        <tr><td>D4</td><td>4</td><td>220 &Omega;, then the third LED's long leg</td><td>4</td></tr>
+        <tr><td>D32</td><td>32</td><td>Main button</td><td>5</td></tr>
+        <tr><td>D27</td><td>27</td><td>Stop button (optional)</td><td>5</td></tr>
+        <tr><td>D26</td><td>26</td><td>Microphone SCK</td><td>6</td></tr>
+        <tr><td>D25</td><td>25</td><td>Microphone WS</td><td>6</td></tr>
+        <tr><td>D33</td><td>33</td><td>Microphone SD (the 100 k&Omega; also goes in this column)</td><td>6</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sub"><b>+ rail (3.3 V):</b> display VCC, microphone VDD, the 100 &micro;F capacitor's longer leg. <b>&ndash; rail (ground):</b> display GND, SD adapter GND, microphone GND and L/R, LED short legs, buttons, the 100 k&Omega; resistor, the 100 &micro;F capacitor's striped side.</p>
+  </section>
+
+  <section class="step">
+    <h2><span class="n">1</span>Power rails</h2>
+    <p>Both breadboard rails carry 3.3 V and ground. The display, LEDs and buttons use the bottom rails; the microphone will use the top ones. VIN (5 V) never goes to a rail.</p>
+    <div class="figure" role="img" aria-label="3V3 to the bottom plus rail, both GND pins to the minus rails, a red jumper joining the two plus rails at the left end, a capacitor across the bottom rails, VIN left free.">
+      <svg id="d-power" viewBox="0 0 1260 870" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Wire</th><th>From</th><th>To</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sw" style="background:#d92d20"></span>red</td><td>3V3 (bottom row, far left)</td><td>Bottom <b>+</b> rail</td><td>3.3 V for every part except the SD adapter.</td></tr>
+        <tr><td><span class="sw" style="background:#1f2328"></span>black</td><td>GND (bottom row, 2nd from left)</td><td>Bottom <b>–</b> rail</td><td></td></tr>
+        <tr><td><span class="sw" style="background:#1f2328"></span>black</td><td>GND (top row, 2nd from left)</td><td>Top <b>–</b> rail</td><td></td></tr>
+        <tr><td><span class="sw" style="background:#d92d20"></span>red</td><td>Bottom <b>+</b> rail, left end</td><td>Top <b>+</b> rail, left end</td><td>Joins the two + rails, so the top one is 3.3 V too.</td></tr>
+        <tr><td>part</td><td>Electrolytic capacitor, 10 to 100 µF</td><td>Across bottom <b>+</b> and <b>–</b></td><td>Longer leg to <b>+</b>; the striped side to <b>–</b>. Steadies 3.3 V when Wi-Fi transmits. The 100 µF one in your kit is fine.</td></tr>
+        <tr><td>none</td><td>VIN (top row, far left)</td><td>Nothing yet</td><td>5 V from USB. Only the SD adapter uses it, in step 3.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="step">
+    <h2><span class="n">2</span>Display (SSD1306)</h2>
+    <p>Four wires. I²C address 0x3C.</p>
+    <div class="figure" role="img" aria-label="SSD1306: SDA to D21, SCL to D22, VCC to the bottom plus rail, GND to the bottom minus rail.">
+      <svg id="d-oled" viewBox="0 0 1260 640" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Wire</th><th>From</th><th>To</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sw" style="background:#2563eb"></span>blue</td><td>SDA</td><td>D21 (GPIO21)</td><td></td></tr>
+        <tr><td><span class="sw" style="background:#7c3aed"></span>purple</td><td>SCL</td><td>D22 (GPIO22)</td><td></td></tr>
+        <tr><td><span class="sw" style="background:#d92d20"></span>red</td><td>VCC</td><td>Bottom <b>+</b> rail (3.3 V)</td><td rowspan="2">Some modules print GND first, others VCC first. Go by your module's labels.</td></tr>
+        <tr><td><span class="sw" style="background:#1f2328"></span>black</td><td>GND</td><td>Bottom <b>–</b> rail</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="step">
+    <h2><span class="n">3</span>MicroSD adapter</h2>
+    <p>Six wires. This is where the recorder keeps audio while Wi-Fi is down. The adapter makes its own 3.3 V from 5 V, so its VCC goes to VIN, not to a rail.</p>
+    <div class="figure" role="img" aria-label="MicroSD adapter: CS to D5, SCK to D18, MISO to D19, MOSI to D23, VCC to VIN, GND to the bottom minus rail.">
+      <svg id="d-sd" viewBox="0 0 1260 640" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Wire</th><th>From</th><th>To</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sw" style="background:#e0a100"></span>yellow</td><td>CS</td><td>D5 (GPIO5)</td><td></td></tr>
+        <tr><td><span class="sw" style="background:#16a34a"></span>green</td><td>SCK</td><td>D18 (GPIO18)</td><td></td></tr>
+        <tr><td><span class="sw" style="background:#2563eb"></span>blue</td><td>MISO</td><td>D19 (GPIO19)</td><td></td></tr>
+        <tr><td><span class="sw" style="background:#7c3aed"></span>purple</td><td>MOSI</td><td>D23 (GPIO23)</td><td>The far-right pin of the bottom row.</td></tr>
+        <tr><td><span class="sw" style="background:#ea6a0a"></span>orange</td><td>VCC</td><td>VIN (5 V)</td><td>On 3.3 V the adapter's regulator starves and many cards fail.</td></tr>
+        <tr><td><span class="sw" style="background:#1f2328"></span>black</td><td>GND</td><td>Bottom <b>–</b> rail</td><td></td></tr>
+        <tr><td>card</td><td>MicroSD card</td><td>In the slot</td><td>Up to 32 GB, formatted FAT32.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="step">
+    <h2><span class="n">4</span>Status LEDs</h2>
+    <p>Drawn for three ordinary 2-leg LEDs. Each one goes GPIO → resistor → long leg; its short leg goes to ground. Red means recording, green means ready, and the third LED means syncing. Red and green together mean "no network".</p>
+    <div class="figure" role="img" aria-label="Three LEDs: D4 through a resistor to the third LED, RX2 through a resistor to the red LED, TX2 through a resistor to the green LED; each short leg to the bottom minus rail.">
+      <svg id="d-led" viewBox="0 0 1260 640" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Wire</th><th>From</th><th>To</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sw" style="background:#db2777"></span>pink</td><td>RX2 (GPIO16) → resistor</td><td>Red LED, long leg</td><td>Recording</td></tr>
+        <tr><td><span class="sw" style="background:#16a34a"></span>green</td><td>TX2 (GPIO17) → resistor</td><td>Green LED, long leg</td><td>Ready</td></tr>
+        <tr><td><span class="sw" style="background:#2563eb"></span>blue</td><td>D4 (GPIO4) → resistor</td><td>Third LED, long leg</td><td>Syncing. Blue is best; yellow or white also works.</td></tr>
+        <tr><td><span class="sw" style="background:#1f2328"></span>black</td><td>Short leg of each LED</td><td>Bottom <b>–</b> rail</td><td>The short leg is on the flat side of the rim.</td></tr>
+        <tr><td>part</td><td>Resistors</td><td>One per LED</td><td>220 Ω (red red brown) or 330 Ω (orange orange brown) is ideal; anything from 150 Ω to 1 kΩ works, and a higher value gives a dimmer LED.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sub">If an LED has four legs, it is an RGB LED and replaces all three. The longest leg is shared. If it is common cathode, the longest leg goes to the <b>–</b> rail; if it is common anode, it goes to the <b>+</b> rail. The other three legs each go through a resistor: red to RX2, green to TX2 and blue to D4. The bring-up test lights each pin both ways, so it shows you which kind you have.</p>
+  </section>
+
+  <section class="step">
+    <h2><span class="n">5</span>Buttons</h2>
+    <p>One button runs the whole device: a short press starts, pauses and resumes, and holding it for 1.5 s stops. A second button is optional and just stops. No resistors: the ESP32's internal pull-ups are used. The board's own BOOT button also works as the main button, so you can test with no buttons wired.</p>
+    <div class="figure" role="img" aria-label="Main button between D32 and the top minus rail; optional Stop button between D27 and the top minus rail; the board's BOOT button highlighted.">
+      <svg id="d-btn" viewBox="0 0 1260 660" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Wire</th><th>From</th><th>To</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sw" style="background:#e0a100"></span>yellow</td><td>Main button, one leg</td><td>D32 (GPIO32)</td><td rowspan="2">Use two legs that are diagonally opposite. Then the switch is between them whichever way the button is turned.</td></tr>
+        <tr><td><span class="sw" style="background:#ea6a0a"></span>orange</td><td>Stop button (optional), one leg</td><td>D27 (GPIO27)</td></tr>
+        <tr><td><span class="sw" style="background:#1f2328"></span>black</td><td>Opposite leg of each button</td><td>Top <b>–</b> rail</td><td></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="step later">
+    <h2><span class="n">6</span>Microphone (INMP441), when it arrives</h2>
+    <p>The microphone sits across the middle gap of the breadboard, three pins on each side, so each pin gets its own column of holes. The shaded strips show the column each pin owns. Anything that should connect to a pin goes into a free hole in that pin's column. Go by the labels printed on your module; it may be turned round compared with the drawing.</p>
+    <div class="figure" role="img" aria-label="INMP441 across the breadboard gap. VDD column red wire to the plus rail, GND column black wire to the minus rail, 100 nF capacitor between the VDD and GND columns, 100 kilohm resistor from the SD column to the minus rail, L/R column black wire to the minus rail, SCK, WS and SD columns to D26, D25 and D33.">
+      <svg id="d-mic" viewBox="0 0 1260 770" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Wire</th><th>From</th><th>To</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sw" style="background:#d92d20"></span>red</td><td>VDD column</td><td>Top <b>+</b> rail (3.3 V)</td><td><b>Never VIN or 5 V</b>; it destroys the microphone.</td></tr>
+        <tr><td><span class="sw" style="background:#1f2328"></span>black</td><td>GND column</td><td>Top <b>&ndash;</b> rail</td><td></td></tr>
+        <tr><td><span class="sw" style="background:#1f2328"></span>black</td><td>L/R column</td><td>Top <b>&ndash;</b> rail</td><td>L/R on ground selects the left channel, which the firmware reads.</td></tr>
+        <tr><td><span class="sw" style="background:#e0a100"></span>yellow</td><td>SCK column</td><td>D26 (GPIO26)</td><td>Bit clock</td></tr>
+        <tr><td><span class="sw" style="background:#ea6a0a"></span>orange</td><td>WS column</td><td>D25 (GPIO25)</td><td>Word select</td></tr>
+        <tr><td><span class="sw" style="background:#16a34a"></span>green</td><td>SD column</td><td>D33 (GPIO33)</td><td>Audio data</td></tr>
+        <tr><td>part</td><td>100 nF (marked 104)</td><td>One leg in the VDD column, the other in the GND column</td><td>Either way round. Keep it next to the microphone.</td></tr>
+        <tr><td>part</td><td>100 k&Omega; (brown black yellow)</td><td>One leg in the SD column, the other in the top <b>&ndash;</b> rail</td><td>Either way round.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <div class="cols">
+    <section>
+      <h2>Before you plug in USB</h2>
+      <ol>
+        <li>Only the SD adapter's VCC is on VIN. No rail touches VIN.</li>
+        <li>The display's VCC and GND are the right way round for your module.</li>
+        <li>The 100 &micro;F capacitor's longer leg is on the <b>+</b> rail.</li>
+        <li>No part has both legs in the same column.</li>
+        <li>The microphone's VDD goes to the <b>+</b> rail (3.3 V), not VIN.</li>
+        <li>Each LED's long leg faces its resistor.</li>
+        <li>Plug in USB. Windows should show a new COM port named "Silicon Labs CP210x". If none appears, install the CP210x driver from Silicon Labs.</li>
+        <li>Flash the bring-up test (<span class="mono">firmware/bringup</span>). It checks the display, each LED, the buttons and the SD card, and shows the results on the display.</li>
+      </ol>
+    </section>
+    <section>
+      <h2>Pins to leave free</h2>
+      <p class="warn"><strong>Don't wire these:</strong> D12, D15 and D2 (they set the boot mode, and D2 also drives the board's blue LED); RX0 and TX0 (the USB serial link). They are printed in red in drawing 1.</p>
+      <p class="sub">D34, D35, VP and VN are input-only and have no pull-ups. They are unused and stay free for later. D5 is also a boot pin, but it is safe as the SD card's CS because the adapter holds it high.</p>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  var NS = "http://www.w3.org/2000/svg";
+  var PANEL = "#eef0f3";
+  var C = { red: "#d92d20", blk: "#1f2328", yel: "#e0a100", org: "#ea6a0a", grn: "#16a34a", blu: "#2563eb",
+            pur: "#7c3aed", pink: "#db2777", lead: "#9aa0a8", dash: "#8b9099", ink: "#1f2328", soft: "#5d6670" };
+  // Pins as printed, from the USB end (left) to the antenna end (right).
+  var TOP = ["VIN","GND","D13","D12","D14","D27","D26","D25","D33","D32","D35","D34","VN","VP","EN"];
+  var BOT = ["3V3","GND","D15","D2","D4","RX2","TX2","D5","D18","D19","D21","RX0","TX0","D22","D23"];
+  var AVOID = ["D12","D15","D2","RX0","TX0"];
+  function px(i) { return 220 + i * 64; }
+  function T(name) { return px(TOP.indexOf(name)); }
+  function B(name) { return px(BOT.indexOf(name)); }
+
+  function make(id) {
+    var svg = document.getElementById(id);
+    var g = {};
+    g.el = function (tag, a, parent) {
+      var e = document.createElementNS(NS, tag);
+      for (var k in a) if (a[k] !== null && a[k] !== undefined) e.setAttribute(k, a[k]);
+      (parent || svg).appendChild(e);
+      return e;
+    };
+    g.text = function (x, y, s, a) {
+      a = a || {};
+      var t = g.el("text", { x: x, y: y, "text-anchor": a.anchor || "start", fill: a.fill || C.ink,
+        "font-size": a.size || 13, "font-weight": a.weight || 400, transform: a.rot ? "rotate(" + a.rot + " " + x + " " + y + ")" : null,
+        "font-family": a.mono ? "IBM Plex Mono, ui-monospace, Consolas, monospace" : null,
+        stroke: a.halo ? PANEL : null, "stroke-width": a.halo ? 4 : null, "paint-order": a.halo ? "stroke" : null });
+      t.textContent = s;
+      return t;
+    };
+    g.wire = function (pts, color, o) {
+      o = o || {};
+      var p = pts.map(function (q) { return q.join(","); }).join(" ");
+      var w = o.w || 5;
+      if (!o.dash) g.el("polyline", { points: p, fill: "none", stroke: PANEL, "stroke-width": w + 6, "stroke-linejoin": "round", "stroke-linecap": "round" });
+      g.el("polyline", { points: p, fill: "none", stroke: o.dash ? C.dash : color, "stroke-width": o.dash ? 3 : w,
+        "stroke-linejoin": "round", "stroke-linecap": "round", "stroke-dasharray": o.dash ? "8 6" : null });
+    };
+    g.joint = function (x, y, dash) { g.el("rect", { x: x - 5.5, y: y - 5.5, width: 11, height: 11, rx: 1.5, fill: dash ? C.dash : C.blk }); };
+    g.tap = function (x, y) { g.el("circle", { cx: x, cy: y, r: 4.5, fill: C.blk }); };
+
+    // rail strip; returns the y of its + and - rows
+    g.strip = function (y, plusFirst, label, labelY) {
+      g.el("rect", { x: 150, y: y, width: 1040, height: 70, rx: 6, fill: "#fbfaf6", stroke: "#cfd3d8" });
+      var rowA = y + 22, rowB = y + 48;
+      var plusY = plusFirst ? rowA : rowB, minusY = plusFirst ? rowB : rowA;
+      g.el("line", { x1: 168, x2: 1160, y1: plusFirst ? y + 9 : y + 61, y2: plusFirst ? y + 9 : y + 61, stroke: C.red, "stroke-width": 2 });
+      g.el("line", { x1: 168, x2: 1160, y1: plusFirst ? y + 61 : y + 9, y2: plusFirst ? y + 61 : y + 9, stroke: C.blu, "stroke-width": 2 });
+      for (var m = -1; m <= 43; m++) {
+        var hx = 200 + 22 * m;
+        g.el("rect", { x: hx - 3.5, y: rowA - 3.5, width: 7, height: 7, rx: 1, fill: "#a7acb3" });
+        g.el("rect", { x: hx - 3.5, y: rowB - 3.5, width: 7, height: 7, rx: 1, fill: "#a7acb3" });
+      }
+      g.text(1176, plusY + 6, "+", { anchor: "middle", fill: C.red, size: 18, weight: 700 });
+      g.text(1176, minusY + 6, "–", { anchor: "middle", fill: C.blu, size: 18, weight: 700 });
+      g.text(150, labelY, label, { size: 13.5, weight: 600 });
+      return { plus: plusY, minus: minusY };
+    };
+
+    // the DevKit seen from above, USB on the left; returns the y of the top and bottom pin rows
+    g.board = function (by, hl, o) {
+      o = o || {};
+      var tp = by + 24, bp = by + 198;
+      g.el("rect", { x: 116, y: by + 90, width: 42, height: 40, rx: 3, fill: "#b7bcc3", stroke: "#8d939b" });
+      g.el("rect", { x: 150, y: by, width: 1040, height: 220, rx: 10, fill: "#16181c" });
+      g.el("rect", { x: 900, y: by + 56, width: 250, height: 108, rx: 4, fill: "#c9cdd3" });
+      g.text(1025, by + 106, "ESP32-WROOM-32", { anchor: "middle", fill: "#2b2f36", size: 16, weight: 700 });
+      g.text(1025, by + 128, "4 MB flash · no PSRAM", { anchor: "middle", fill: "#4a5059", size: 12 });
+      g.text(540, by + 114, "ESP32 DevKit V1, 30 pins (USB end on the left)", { anchor: "middle", fill: "#e9ebee", size: 16, weight: 500 });
+      [["EN", by + 58], ["BOOT", by + 140]].forEach(function (b) {
+        var on = o.boot && b[0] === "BOOT";
+        g.el("rect", { x: 163, y: b[1], width: 22, height: 22, rx: 3, fill: "#c9cdd3", stroke: on ? "#f5b301" : "#8d939b", "stroke-width": on ? 3 : 1 });
+        g.text(174, b[1] + (b[0] === "EN" ? -6 : 38), b[0], { anchor: "middle", mono: true, size: 10, fill: on ? "#ffffff" : "#9aa1ab", weight: on ? 600 : 400 });
+      });
+      function row(list, y, labelY, prefix) {
+        list.forEach(function (name, i) {
+          var on = hl.indexOf(prefix + i) >= 0, bad = o.avoid && AVOID.indexOf(name) >= 0, vin = o.avoid && name === "VIN";
+          g.el("rect", { x: px(i) - 7, y: y - 7, width: 14, height: 14, rx: 2, fill: "#4b5058" });
+          g.text(px(i), labelY, name, { anchor: "middle", mono: true, size: on ? 12 : 10.5, weight: on ? 600 : 400,
+            fill: on ? "#ffffff" : bad ? "#ff8a80" : vin ? "#ffb366" : "#7d848e" });
+        });
+      }
+      row(TOP, tp, tp + 25, "t");
+      row(BOT, bp, bp - 17, "b");
+      return { tp: tp, bp: bp };
+    };
+    g.pin = function (x, y) { g.el("rect", { x: x - 8, y: y - 8, width: 16, height: 16, rx: 2.5, fill: "#3a3f47", stroke: "#f5b301", "stroke-width": 2.5 }); };
+    g.pinDash = function (x, y) { g.el("rect", { x: x - 7, y: y - 7, width: 14, height: 14, rx: 2, fill: "#4b5058", stroke: C.dash, "stroke-width": 2 }); };
+    g.note = function (y, extra) {
+      g.text(150, y, "Grey dashed lines: power wires from step 1, already in place." + (extra || ""), { size: 13, fill: C.soft });
+    };
+    // a module: box with pins on its top edge and on its bottom edge
+    g.module = function (x, y, w, h, fill, topPins, botPins) {
+      topPins.forEach(function (p) { g.el("rect", { x: p[1] - 4, y: y - 18, width: 8, height: 18, fill: "#c9a227" }); });
+      botPins.forEach(function (p) { g.el("rect", { x: p[1] - 4, y: y + h, width: 8, height: 18, fill: "#c9a227" }); });
+      g.el("rect", { x: x, y: y, width: w, height: h, rx: 8, fill: fill });
+      topPins.forEach(function (p) { g.text(p[1], y + 18, p[0], { anchor: "middle", fill: "#ffffff", mono: true, size: 12.5, weight: 600 }); });
+      botPins.forEach(function (p) { g.text(p[1], y + h - 8, p[0], { anchor: "middle", fill: "#ffffff", mono: true, size: 12.5, weight: 600 }); });
+    };
+
+    var BAND = { brown: "#7a4a21", black: "#111111", red: "#d22222", yellow: "#f2c200", gold: "#c9a227" };
+    g.res = function (cx, cy, bands) {   // vertical resistor
+      var grp = g.el("g", { transform: "translate(" + cx + "," + cy + ")" });
+      g.el("rect", { x: -7.5, y: -23, width: 15, height: 46, rx: 6, fill: "#e6cf9f", stroke: "#a88a55" }, grp);
+      bands.concat(["gold"]).forEach(function (b, i) {
+        g.el("rect", { x: -7.5, y: (i < 3 ? -14 + i * 7 : 11), width: 15, height: 4, fill: BAND[b] }, grp);
+      });
+    };
+    g.button = function (cx, cy) {
+      [[-22, -22], [22, -22], [-22, 22], [22, 22]].forEach(function (d) {
+        g.el("circle", { cx: cx + d[0], cy: cy + d[1], r: 4, fill: C.lead });
+      });
+      g.el("rect", { x: cx - 20, y: cy - 20, width: 40, height: 40, rx: 4, fill: "#2a2d33", stroke: "#111" });
+      g.el("circle", { cx: cx, cy: cy, r: 12, fill: "#0f1012", stroke: "#4a4f57", "stroke-width": 2 });
+    };
+    // LED seen from above: + (long leg) at the top, - (short leg, flat side) at the bottom
+    g.led = function (cx, cy, color) {
+      g.el("circle", { cx: cx, cy: cy, r: 14, fill: color, "fill-opacity": 0.35, stroke: color, "stroke-width": 2.5 });
+      g.el("line", { x1: cx - 10, x2: cx + 10, y1: cy + 10, y2: cy + 10, stroke: color, "stroke-width": 2.5 });
+      g.text(cx - 20, cy - 6, "+", { anchor: "middle", size: 13, weight: 700 });
+      g.text(cx - 20, cy + 16, "–", { anchor: "middle", size: 13, weight: 700 });
+    };
+    return g;
+  }
+
+  /* ---------- 1. power ---------- */
+  (function () {
+    var g = make("d-power");
+    var top = g.strip(40, true, "Top rails: + is 3.3 V (through the red jumper), – is GND", 30);
+    var bot = g.strip(740, false, "Bottom rails: + is 3.3 V, – is GND", 838);
+    var b = g.board(380, ["t0", "t1", "b0", "b1"], { avoid: true });
+    g.wire([[B("3V3"), b.bp], [B("3V3"), bot.plus]], C.red); g.joint(B("3V3"), bot.plus);
+    g.wire([[B("GND"), b.bp], [B("GND"), bot.minus]], C.blk); g.joint(B("GND"), bot.minus);
+    g.wire([[T("GND"), b.tp], [T("GND"), top.minus]], C.blk); g.joint(T("GND"), top.minus);
+    g.wire([[178, bot.plus], [96, bot.plus], [96, top.plus], [178, top.plus]], C.red);
+    g.joint(178, bot.plus); g.joint(178, top.plus);
+    g.text(86, 420, "Red jumper joins the + rails", { anchor: "middle", rot: -90, size: 13, weight: 600 });
+    // capacitor across the bottom rails
+    g.wire([[620, 710], [620, bot.plus]], C.lead, { w: 3 }); g.joint(620, bot.plus);
+    g.wire([[642, 710], [642, bot.minus]], C.lead, { w: 3 }); g.joint(642, bot.minus);
+    g.el("rect", { x: 614, y: 650, width: 34, height: 60, rx: 5, fill: "#24345f" });
+    g.el("rect", { x: 636, y: 650, width: 10, height: 60, fill: "#b7c0d6" });
+    g.text(641, 676, "–", { anchor: "middle", fill: "#24345f", size: 13, weight: 700 });
+    g.text(641, 696, "–", { anchor: "middle", fill: "#24345f", size: 13, weight: 700 });
+    g.text(664, 666, "10–100 µF capacitor", { size: 13.5, weight: 600 });
+    g.text(664, 685, "Longer leg (+) to the + rail.", { size: 12.5, fill: C.soft });
+    g.text(664, 702, "Striped side to the – rail.", { size: 12.5, fill: C.soft });
+    g.pin(B("3V3"), b.bp); g.pin(B("GND"), b.bp); g.pin(T("GND"), b.tp);
+    g.text(300, 660, "3V3 to the + rail, GND to the – rail", { size: 13.5, weight: 600 });
+    g.text(300, 250, "GND to the top – rail", { size: 13.5, weight: 600 });
+    g.text(300, 360, "VIN is 5 V from USB: keep it off the rails. Only the SD adapter uses it (step 3).", { size: 13, weight: 700, fill: C.org });
+    g.text(860, 862, "Pin names in red: leave free.", { size: 12.5, fill: C.soft });
+  })();
+
+  // Bottom-side drawings: board at the top, parts below it, bottom rails underneath.
+  function bottomSide(id, hl) {
+    var g = make(id);
+    var b = g.board(60, hl);
+    var r = g.strip(500, false, "Bottom rails: + is 3.3 V, – is GND", 592);
+    g.wire([[B("3V3"), b.bp], [B("3V3"), r.plus]], null, { dash: true }); g.joint(B("3V3"), r.plus, true);
+    g.wire([[B("GND"), b.bp], [B("GND"), r.minus]], null, { dash: true }); g.joint(B("GND"), r.minus, true);
+    g.pinDash(B("3V3"), b.bp); g.pinDash(B("GND"), b.bp);
+    return { g: g, b: b, r: r };
+  }
+
+  /* ---------- 2. display ---------- */
+  (function () {
+    var s = bottomSide("d-oled", ["b10", "b13"]), g = s.g, b = s.b, r = s.r;
+    var sda = B("D21"), scl = B("D22");
+    g.wire([[sda, 322], [sda, b.bp]], C.blu);
+    g.wire([[scl, 322], [scl, b.bp]], C.pur);
+    g.wire([[900, 448], [900, r.plus]], C.red); g.joint(900, r.plus);
+    g.wire([[1000, 448], [1000, r.minus]], C.blk); g.joint(1000, r.minus);
+    g.module(820, 340, 280, 108, "#1f4fa8", [["SDA", sda], ["SCL", scl]], [["VCC", 900], ["GND", 1000]]);
+    g.el("rect", { x: 890, y: 362, width: 140, height: 62, rx: 2, fill: "#0b0d10" });
+    g.text(960, 400, "READY", { anchor: "middle", fill: "#7dd3fc", mono: true, size: 18, weight: 600 });
+    g.text(796, 360, "Display (SSD1306)", { anchor: "end", size: 17, weight: 700 });
+    g.text(796, 380, "Top pins go up to the board.", { anchor: "end", size: 12.5, fill: C.soft });
+    g.text(796, 397, "Bottom pins go down to the rails.", { anchor: "end", size: 12.5, fill: C.soft });
+    g.text(796, 414, "Your module has all four in one row: go by its labels.", { anchor: "end", size: 12.5, fill: C.soft });
+    g.pin(sda, b.bp); g.pin(scl, b.bp);
+    g.note(625);
+  })();
+
+  /* ---------- 3. MicroSD ---------- */
+  (function () {
+    var s = bottomSide("d-sd", ["b7", "b8", "b9", "b14", "t0"]), g = s.g, b = s.b, r = s.r;
+    var cs = B("D5"), sck = B("D18"), miso = B("D19"), mosi = B("D23");
+    g.wire([[cs, 322], [cs, b.bp]], C.yel);
+    g.wire([[sck, 322], [sck, b.bp]], C.grn);
+    g.wire([[miso, 322], [miso, b.bp]], C.blu);
+    g.wire([[924, 322], [924, 292], [mosi, 292], [mosi, b.bp]], C.pur);
+    g.wire([[700, 448], [700, r.minus]], C.blk); g.joint(700, r.minus);
+    g.wire([[780, 448], [780, 472], [1218, 472], [1218, 34], [T("VIN"), 34], [T("VIN"), b.tp]], C.org);
+    g.module(640, 340, 320, 108, "#1d5a8c", [["CS", cs], ["SCK", sck], ["MISO", miso], ["MOSI", 924]], [["GND", 700], ["VCC", 780]]);
+    g.el("rect", { x: 850, y: 400, width: 92, height: 36, rx: 3, fill: "#c9cdd3" });
+    g.text(896, 423, "card slot", { anchor: "middle", fill: "#2b2f36", size: 11.5, weight: 600 });
+    g.text(800, 20, "Orange: VCC to VIN (5 V). The adapter makes its own 3.3 V.", { anchor: "middle", size: 13, weight: 600, fill: C.org });
+    g.text(616, 360, "MicroSD adapter", { anchor: "end", size: 17, weight: 700 });
+    g.text(616, 380, "Signal pins go up to the board.", { anchor: "end", size: 12.5, fill: C.soft });
+    g.text(616, 397, "GND to the – rail, VCC around to VIN.", { anchor: "end", size: 12.5, fill: C.soft });
+    g.text(616, 414, "Yours has one row: CS SCK MOSI MISO VCC GND.", { anchor: "end", size: 12.5, fill: C.soft });
+    g.pin(cs, b.bp); g.pin(sck, b.bp); g.pin(miso, b.bp); g.pin(mosi, b.bp); g.pin(T("VIN"), b.tp);
+    g.note(625);
+  })();
+
+  /* ---------- 4. LEDs ---------- */
+  (function () {
+    var s = bottomSide("d-led", ["b4", "b5", "b6"]), g = s.g, b = s.b, r = s.r;
+    var leds = [[B("D4"), C.blu, "#3b82f6", "3rd"], [B("RX2"), C.pink, "#ef4444", "red"], [B("TX2"), C.grn, "#22c55e", "green"]];
+    leds.forEach(function (l) {
+      var x = l[0];
+      g.wire([[x, 300], [x, b.bp]], l[1]);
+      g.wire([[x, 345], [x, 386]], C.lead, { w: 3 });
+      g.wire([[x, 414], [x, r.minus]], C.blk); g.joint(x, r.minus);
+      g.res(x, 322, ["red", "red", "brown"]);
+      g.text(x + 21, 322, "220 Ω", { anchor: "middle", size: 12, weight: 600, rot: -90, halo: true });
+      g.led(x, 400, l[2]);
+      g.text(x + 8, 452, l[3], { size: 12.5, weight: 600, halo: true });
+      g.pin(x, b.bp);
+    });
+    g.text(680, 392, "LED: long leg (+) toward the resistor,", { size: 13, weight: 600 });
+    g.text(680, 410, "short leg (–, flat side of the rim) to the – rail.", { size: 13, weight: 600 });
+    g.text(680, 434, "Any resistor from 150 Ω to 1 kΩ works.", { size: 12.5, fill: C.soft });
+    g.note(625, "  Pink wire = red LED.");
+  })();
+
+  /* ---------- 5. buttons ---------- */
+  (function () {
+    var g = make("d-btn");
+    var r = g.strip(40, true, "Top rails: + is 3.3 V, – is GND", 30);
+    var b = g.board(380, ["t9", "t5"], { boot: true });
+    g.wire([[T("GND"), b.tp], [T("GND"), r.minus]], null, { dash: true }); g.joint(T("GND"), r.minus, true); g.pinDash(T("GND"), b.tp);
+    var main = T("D32"), stop = T("D27");
+    g.wire([[main + 44, 208], [main + 44, r.minus]], C.blk); g.joint(main + 44, r.minus);
+    g.wire([[main, 252], [main, b.tp]], C.yel);
+    g.button(main + 22, 230);
+    g.text(main + 70, 222, "Main button", { size: 15, weight: 700 });
+    g.text(main + 70, 241, "Short press: start, pause, resume", { size: 12.5, fill: C.soft });
+    g.text(main + 70, 258, "Hold 1.5 s: stop", { size: 12.5, fill: C.soft });
+    g.wire([[stop + 44, 208], [stop + 44, r.minus]], C.blk); g.joint(stop + 44, r.minus);
+    g.wire([[stop, 252], [stop, b.tp]], C.org);
+    g.button(stop + 22, 230);
+    g.text(stop - 14, 226, "Stop", { anchor: "end", size: 15, weight: 700 });
+    g.text(stop - 14, 245, "optional", { anchor: "end", size: 12.5, fill: C.soft });
+    g.pin(main, b.tp); g.pin(stop, b.tp);
+    g.text(150, 640, "Grey dashed line: GND wire from step 1. Highlighted on the board: BOOT, which also works as the main button.", { size: 13, fill: C.soft });
+  })();
+
+  /* ---------- shared close-up helpers ---------- */
+  function colx(k) { return 200 + 44 * k; }
+  // breadboard terminal area (rows a-e, middle gap, rows f-j) for columns k0..k1
+  function area(g, y, k0, k1) {
+    var x0 = colx(k0) - 36, x1 = colx(k1) + 36;
+    g.el("rect", { x: x0, y: y, width: x1 - x0, height: 280, rx: 6, fill: "#fbfaf6", stroke: "#cfd3d8" });
+    g.el("rect", { x: x0 + 4, y: y + 133, width: x1 - x0 - 8, height: 14, rx: 3, fill: "#e4e6e9" });
+    var up = [], lo = [];
+    for (var i = 0; i < 5; i++) { up.push(y + 20 + 24 * i); lo.push(y + 164 + 24 * i); }
+    var letters = "abcdefghij";
+    up.concat(lo).forEach(function (ry, i) {
+      g.text(x0 + 12, ry + 4, letters[i], { anchor: "middle", size: 10, fill: "#9aa0a8", mono: true });
+      for (var k = k0; k <= k1; k++) g.el("rect", { x: colx(k) - 4, y: ry - 4, width: 8, height: 8, rx: 1, fill: "#a7acb3" });
+    });
+    return { up: up, lo: lo, gap: y + 140 };
+  }
+  function band(g, x, y1, y2, color, op) {
+    g.el("rect", { x: x - 15, y: y1 - 12, width: 30, height: y2 - y1 + 24, rx: 7, fill: color, "fill-opacity": op || 0.16,
+      stroke: color, "stroke-opacity": 0.55, "stroke-width": 1.5 });
+  }
+  function badge(g, x, y, n) {
+    g.el("circle", { cx: x, cy: y, r: 11, fill: C.ink, stroke: PANEL, "stroke-width": 2 });
+    g.text(x, y + 4.5, String(n), { anchor: "middle", fill: "#ffffff", size: 12.5, weight: 700 });
+  }
+  function hole(g, x, y) { g.el("rect", { x: x - 5, y: y - 5, width: 10, height: 10, rx: 1.5, fill: C.blk }); }
+  function ceramic(g, cx, cy, x1, y1, x2, y2) {
+    g.el("line", { x1: cx - 6, y1: cy + 6, x2: x1, y2: y1, stroke: C.lead, "stroke-width": 2.5 });
+    g.el("line", { x1: cx + 6, y1: cy + 6, x2: x2, y2: y2, stroke: C.lead, "stroke-width": 2.5 });
+    g.el("circle", { cx: cx, cy: cy, r: 11, fill: "#d9822b", stroke: "#a85f15" });
+    g.text(cx, cy + 3, "104", { anchor: "middle", fill: "#3b2306", size: 8.5, weight: 700 });
+    hole(g, x1, y1); hole(g, x2, y2);
+  }
+  function resH(g, x1, x2, y, bands) {   // horizontal resistor between two holes
+    var BAND = { brown: "#7a4a21", black: "#111111", red: "#d22222", yellow: "#f2c200", gold: "#c9a227" };
+    var cx = (x1 + x2) / 2;
+    g.el("line", { x1: x1, y1: y, x2: x2, y2: y, stroke: C.lead, "stroke-width": 2.5 });
+    g.el("rect", { x: cx - 23, y: y - 7.5, width: 46, height: 15, rx: 6, fill: "#e6cf9f", stroke: "#a88a55" });
+    bands.concat(["gold"]).forEach(function (b, i) {
+      g.el("rect", { x: i < 3 ? cx - 14 + i * 7 : cx + 11, y: y - 7.5, width: 4, height: 15, fill: BAND[b] });
+    });
+  }
+
+  /* ---------- breadboard basics ---------- */
+  (function () {
+    var g = make("d-bb");
+    var r = g.strip(30, true, "Rails: each row runs the full length of the breadboard", 20);
+    g.el("rect", { x: 172, y: r.plus - 9, width: 990, height: 18, rx: 9, fill: C.red, "fill-opacity": 0.12, stroke: C.red, "stroke-opacity": 0.5 });
+    badge(g, 128, r.plus, 1);
+    var A = area(g, 130, 0, 21);
+    g.text(colx(4) - 8, A.gap + 4, "Middle gap: nothing connects across it", { size: 12.5, weight: 600, fill: C.soft });
+    // 2 and 3: one column, split by the gap
+    band(g, colx(2), A.up[0], A.up[4], C.blu);
+    band(g, colx(2), A.lo[0], A.lo[4], C.grn);
+    badge(g, colx(2), 116, 2); badge(g, colx(2), 426, 3);
+    // 4: correct placement, legs in two columns
+    band(g, colx(6), A.up[0], A.up[4], C.grn); band(g, colx(7), A.up[0], A.up[4], C.grn);
+    ceramic(g, (colx(6) + colx(7)) / 2, A.up[1] - 4, colx(6), A.up[2], colx(7), A.up[2]);
+    badge(g, (colx(6) + colx(7)) / 2, 116, 4);
+    g.text((colx(6) + colx(7)) / 2, A.lo[4] + 32, "Right", { anchor: "middle", size: 13, weight: 700, fill: C.grn });
+    // 5: wrong placement, both legs in one column
+    band(g, colx(11), A.up[0], A.up[4], C.red, 0.2);
+    ceramic(g, colx(11) + 30, A.up[2], colx(11), A.up[1], colx(11), A.up[3]);
+    badge(g, colx(11), 116, 5);
+    g.text(colx(11) + 15, A.lo[4] + 32, "Wrong", { anchor: "middle", size: 13, weight: 700, fill: C.red });
+    // 6: a wire joins a column to the - rail; a resistor leg in that column is now on ground
+    band(g, colx(16), A.up[0], A.up[4], C.ink, 0.1);
+    g.wire([[colx(16), A.up[0]], [colx(16), r.minus]], C.blk); hole(g, colx(16), A.up[0]); g.joint(colx(16), r.minus);
+    resH(g, colx(16), colx(19), A.up[2], ["red", "red", "brown"]);
+    hole(g, colx(16), A.up[2]); hole(g, colx(19), A.up[2]);
+    badge(g, colx(16) + 26, 116, 6);
+  })();
+
+  /* ---------- the small parts ---------- */
+  (function () {
+    var g = make("d-parts");
+    function caption(cx, lines) {
+      lines.forEach(function (l, i) { g.text(cx, 250 + i * 18, l, { anchor: "middle", size: i ? 12.5 : 14, weight: i ? 400 : 700, fill: i ? C.soft : C.ink }); });
+    }
+    // electrolytic
+    var cx = 280;
+    g.el("line", { x1: cx - 10, y1: 130, x2: cx - 10, y2: 214, stroke: C.lead, "stroke-width": 3 });
+    g.el("line", { x1: cx + 12, y1: 130, x2: cx + 12, y2: 186, stroke: C.lead, "stroke-width": 3 });
+    g.el("rect", { x: cx - 24, y: 36, width: 48, height: 96, rx: 9, fill: "#24345f" });
+    g.el("rect", { x: cx + 8, y: 36, width: 14, height: 96, fill: "#b7c0d6" });
+    [66, 92, 118].forEach(function (y) { g.text(cx + 15, y, "–", { anchor: "middle", fill: "#24345f", size: 14, weight: 700 }); });
+    g.text(cx - 6, 92, "100µF", { anchor: "middle", fill: "#dfe5f2", size: 10, weight: 600, rot: -90 });
+    g.text(cx - 18, 212, "+ long", { anchor: "end", size: 12.5, weight: 700, fill: C.red });
+    g.text(cx + 20, 186, "– short", { size: 12.5, weight: 700, fill: C.blu });
+    caption(cx, ["Electrolytic, 100 µF", "Has a + and a –.", "Longer leg +, striped side –."]);
+    // ceramic
+    cx = 540;
+    g.el("line", { x1: cx - 10, y1: 108, x2: cx - 14, y2: 210, stroke: C.lead, "stroke-width": 3 });
+    g.el("line", { x1: cx + 10, y1: 108, x2: cx + 14, y2: 210, stroke: C.lead, "stroke-width": 3 });
+    g.el("circle", { cx: cx, cy: 84, r: 30, fill: "#d9822b", stroke: "#a85f15", "stroke-width": 2 });
+    g.text(cx, 90, "104", { anchor: "middle", fill: "#3b2306", size: 16, weight: 700 });
+    caption(cx, ["Ceramic, 100 nF (marked 104)", "No + or –.", "Either way round."]);
+    // resistor
+    cx = 800;
+    g.el("line", { x1: cx, y1: 30, x2: cx, y2: 212, stroke: C.lead, "stroke-width": 3 });
+    g.el("rect", { x: cx - 12, y: 78, width: 24, height: 80, rx: 9, fill: "#e6cf9f", stroke: "#a88a55" });
+    [["#7a4a21", 90], ["#111111", 103], ["#f2c200", 116], ["#c9a227", 140]].forEach(function (b) {
+      g.el("rect", { x: cx - 12, y: b[1], width: 24, height: 7, fill: b[0] });
+    });
+    caption(cx, ["Resistor", "No + or –. Either way round.", "Brown black yellow = 100 kΩ", "Red red brown = 220 Ω"]);
+    // LED
+    cx = 1060;
+    g.el("line", { x1: cx - 9, y1: 124, x2: cx - 9, y2: 214, stroke: C.lead, "stroke-width": 3 });
+    g.el("line", { x1: cx + 9, y1: 124, x2: cx + 9, y2: 188, stroke: C.lead, "stroke-width": 3 });
+    g.el("path", { d: "M" + (cx - 22) + ",116 L" + (cx - 22) + ",68 A22,22 0 0 1 " + (cx + 22) + ",68 L" + (cx + 22) + ",116 Z",
+      fill: "#ef4444", "fill-opacity": 0.55, stroke: "#b91c1c", "stroke-width": 2 });
+    g.el("path", { d: "M" + (cx - 28) + ",114 L" + (cx + 22) + ",114 L" + (cx + 22) + ",126 L" + (cx - 28) + ",126 Z", fill: "#f3a5a5", stroke: "#b91c1c", "stroke-width": 2 });
+    g.el("line", { x1: cx + 22, y1: 110, x2: cx + 22, y2: 130, stroke: "#1f2328", "stroke-width": 3 });
+    g.text(cx + 30, 124, "flat side", { size: 11.5, fill: C.soft });
+    g.text(cx - 17, 212, "+ long", { anchor: "end", size: 12.5, weight: 700, fill: C.red });
+    g.text(cx + 17, 186, "– short", { size: 12.5, weight: 700, fill: C.blu });
+    caption(cx, ["LED", "Has a + and a –.", "Longer leg +, flat rim side –."]);
+  })();
+
+  /* ---------- full wiring at a glance ---------- */
+  (function () {
+    var g = make("d-all");
+    function box(x, y, w, h, title) {
+      g.el("rect", { x: x, y: y, width: w, height: h, rx: 8, fill: "#ffffff", stroke: "#cfd3d8" });
+      g.text(x + 12, y + 22, title, { size: 14, weight: 700 });
+    }
+    function note(x, y, s) { g.text(x, y, s, { size: 12, fill: C.soft }); }
+    function pinMark(x, y) { g.el("rect", { x: x - 5, y: y - 5, width: 10, height: 10, rx: 2, fill: "#3a3f47", stroke: "#f5b301", "stroke-width": 2 }); }
+    g.el("rect", { x: 500, y: 70, width: 260, height: 540, rx: 10, fill: "#16181c" });
+    g.text(630, 334, "ESP32", { anchor: "middle", fill: "#ffffff", size: 22, weight: 700 });
+    g.text(630, 356, "DevKit V1", { anchor: "middle", fill: "#c9cdd3", size: 13 });
+    function left(y, part, pin, color) {
+      g.wire([[380, y], [500, y]], color, { w: 4 });
+      g.text(368, y + 4.5, part, { anchor: "end", mono: true, size: 12.5, weight: 600 });
+      g.text(512, y + 4.5, pin, { mono: true, size: 12.5, weight: 600, fill: "#ffffff" });
+      pinMark(500, y);
+    }
+    function right(y, part, pin, color, res) {
+      g.wire([[760, y], [880, y]], color, { w: 4 });
+      if (res) {
+        resH(g, 790, 850, y, ["red", "red", "brown"]);
+        g.text(820, y - 11, "220 Ω", { anchor: "middle", size: 10.5, weight: 600, halo: true });
+      }
+      g.text(748, y + 4.5, pin, { anchor: "end", mono: true, size: 12.5, weight: 600, fill: "#ffffff" });
+      g.text(892, y + 4.5, part, { mono: true, size: 12.5, weight: 600 });
+      pinMark(760, y);
+    }
+    box(150, 92, 230, 148, "Display (SSD1306)");
+    left(140, "SDA", "D21", C.blu); left(168, "SCL", "D22", C.pur);
+    note(162, 202, "VCC → + rail"); note(162, 222, "GND → – rail");
+    box(150, 262, 230, 214, "MicroSD adapter");
+    left(312, "CS", "D5", C.yel); left(340, "SCK", "D18", C.grn); left(368, "MISO", "D19", C.blu);
+    left(396, "MOSI", "D23", C.pur); left(424, "VCC", "VIN (5 V)", C.org);
+    note(162, 458, "GND → – rail");
+    box(150, 498, 230, 108, "Breadboard rails");
+    left(548, "+ rail", "3V3", C.red); left(576, "– rail", "GND", C.blk);
+    note(162, 600, "100 µF across + and –");
+    box(880, 92, 230, 214, "Microphone (INMP441)");
+    right(140, "SCK", "D26", C.yel); right(168, "WS", "D25", C.org); right(196, "SD", "D33", C.grn);
+    note(892, 226, "VDD → + rail (3.3 V only)"); note(892, 245, "GND and L/R → – rail");
+    note(892, 264, "100 nF: VDD to GND"); note(892, 283, "100 kΩ: SD to – rail");
+    box(880, 330, 230, 148, "LEDs");
+    right(380, "Red, long leg", "RX2", C.pink, true); right(408, "Green, long leg", "TX2", C.grn, true);
+    right(436, "Third, long leg", "D4", C.blu, true);
+    note(892, 466, "Short legs → – rail");
+    box(880, 498, 230, 108, "Buttons");
+    right(548, "Main", "D32", C.yel); right(576, "Stop (optional)", "D27", C.org);
+    note(892, 600, "Other corner → – rail");
+  })();
+
+  /* ---------- 6. microphone close-up ---------- */
+  (function () {
+    var g = make("d-mic");
+    var r = g.strip(40, true, "Top rails: + is 3.3 V, – is GND", 30);
+    var A = area(g, 150, 6, 15);
+    var b = g.board(500, ["t6", "t7", "t8"]);
+    var c1 = colx(10), c2 = colx(11), c3 = colx(12);   // 640, 684, 728
+    // the column each pin owns
+    band(g, c1, A.up[0], A.up[4], C.ink, 0.1); band(g, c2, A.up[0], A.up[4], C.red); band(g, c3, A.up[0], A.up[4], C.grn);
+    band(g, c1, A.lo[0], A.lo[4], C.yel, 0.2); band(g, c2, A.lo[0], A.lo[4], C.org); band(g, c3, A.lo[0], A.lo[4], C.ink, 0.1);
+    // step-1 ground wire
+    g.wire([[T("GND"), b.tp], [T("GND"), r.minus]], null, { dash: true }); g.joint(T("GND"), r.minus, true); g.pinDash(T("GND"), b.tp);
+    // 1 VDD, 2 GND
+    g.wire([[c2, A.up[0]], [c2, r.plus]], C.red); hole(g, c2, A.up[0]); g.joint(c2, r.plus);
+    g.wire([[c1, A.up[0]], [c1, r.minus]], C.blk); hole(g, c1, A.up[0]); g.joint(c1, r.minus);
+    // 4 100k from SD column to - rail
+    g.wire([[c3, A.up[0]], [c3, r.minus]], C.lead, { w: 3 }); hole(g, c3, A.up[0]); g.joint(c3, r.minus);
+    g.res(c3, 129, ["brown", "black", "yellow"]);
+    // 3 100 nF between VDD and GND columns
+    ceramic(g, (c1 + c2) / 2, A.up[1] - 16, c1, A.up[1], c2, A.up[1]);
+    // 6 signal wires
+    g.wire([[c1, A.lo[4]], [c1, 456], [T("D26"), 456], [T("D26"), b.tp]], C.yel); hole(g, c1, A.lo[4]);
+    g.wire([[c2, A.lo[4]], [c2, 456], [T("D25"), 456], [T("D25"), b.tp]], C.org); hole(g, c2, A.lo[4]);
+    // 5 L/R to - rail (drawn under the green wire, which crosses it)
+    g.wire([[c3, A.lo[4]], [c3, 440], [880, 440], [880, r.minus]], C.blk); hole(g, c3, A.lo[4]); g.joint(880, r.minus);
+    g.wire([[c3, A.up[2]], [838, A.up[2]], [838, 472], [T("D33"), 472], [T("D33"), b.tp]], C.grn); hole(g, c3, A.up[2]);
+    // the microphone across the gap
+    g.el("rect", { x: c1 - 24, y: A.up[4] - 16, width: c3 - c1 + 48, height: A.lo[0] - A.up[4] + 32, rx: 10, fill: "#3a3389" });
+    [[c1, "GND"], [c2, "VDD"], [c3, "SD"]].forEach(function (p) {
+      g.el("rect", { x: p[0] - 5, y: A.up[4] - 5, width: 10, height: 10, rx: 1.5, fill: "#c9a227" });
+      g.text(p[0], A.up[4] + 22, p[1], { anchor: "middle", fill: "#ffffff", mono: true, size: 11.5, weight: 600 });
+    });
+    [[c1, "SCK"], [c2, "WS"], [c3, "L/R"]].forEach(function (p) {
+      g.el("rect", { x: p[0] - 5, y: A.lo[0] - 5, width: 10, height: 10, rx: 1.5, fill: "#c9a227" });
+      g.text(p[0], A.lo[0] - 13, p[1], { anchor: "middle", fill: "#ffffff", mono: true, size: 11.5, weight: 600 });
+    });
+    g.text(c1 - 34, A.gap + 5, "INMP441", { anchor: "end", size: 14, weight: 700, halo: true });
+    g.pin(T("D26"), b.tp); g.pin(T("D25"), b.tp); g.pin(T("D33"), b.tp);
+    // badges on the drawing
+    badge(g, c2, 128, 1); badge(g, c1, 128, 2); badge(g, (c1 + c2) / 2, A.up[1] + 16, 3);
+    badge(g, c3 + 24, 129, 4); badge(g, 880, 250, 5); badge(g, T("D26"), 486, 6);
+    // legend on the right
+    var items = [
+      ["Red wire", "VDD column to the + rail."],
+      ["Black wire", "GND column to the – rail."],
+      ["100 nF capacitor (104)", "One leg in VDD, one in GND.", "Either way round."],
+      ["100 kΩ resistor", "One leg in SD, one in the – rail.", "Either way round."],
+      ["Black wire", "L/R column to the – rail.", "Picks the left channel."],
+      ["Yellow, orange, green", "SCK, WS and SD columns to", "D26, D25 and D33 on the ESP32."]
+    ];
+    items.forEach(function (it, i) {
+      var y = 140 + i * 56;
+      badge(g, 928, y - 4, i + 1);
+      it.forEach(function (line, j) {
+        g.text(948, y + j * 16, line, { size: j ? 12 : 13, weight: j ? 400 : 700, fill: j ? C.soft : C.ink });
+      });
+    });
+    g.text(150, 752, "Grey dashed line: GND wire from step 1. The top + rail gets 3.3 V through the red jumper from step 1. Shaded strip: the column a pin owns.", { size: 13, fill: C.soft });
+  })();
+})();
+</script>

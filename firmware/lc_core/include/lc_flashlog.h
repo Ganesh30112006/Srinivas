@@ -1,5 +1,6 @@
 /*
- * Circular flash log of ADPCM chunks: exactly one record per 4 KB erase sector.
+ * Circular log of ADPCM chunks: exactly one record per 4 KB sector. The storage behind it is
+ * pluggable (lc_flash_ops_t): an internal-flash partition, or a preallocated file on an SD card.
  *
  * Record layout (little-endian):
  *   0  4  magic "LCFL"            40  4  seq
@@ -49,11 +50,15 @@ typedef struct {
     uint16_t payload_len;
 } lc_flash_record_t;
 
-/* In-RAM index entry per sector, rebuilt from flash at boot. */
+/*
+ * In-RAM index entry per sector, rebuilt from storage at boot. 16 bytes, so a 20-minute SD log
+ * (2400 sectors) needs 38 KB of RAM on boards without PSRAM. The session is kept as a 32-bit tag
+ * (CRC-32 of the 16-byte session id); the full id is in the record itself.
+ */
 typedef struct {
     uint32_t write_counter; /* 0 = empty/invalid */
     uint32_t seq;
-    uint8_t session_id[16];
+    uint32_t session_tag;   /* lc_flashlog_session_tag(session_id) */
     bool pending; /* valid and not yet acknowledged */
     bool sent;    /* sent on the current connection */
 } lc_flash_slot_t;
@@ -94,6 +99,9 @@ size_t lc_flashlog_pending_for(const lc_flashlog_t *log, const uint8_t session_i
 unsigned lc_flashlog_usage_pct(const lc_flashlog_t *log);
 
 uint32_t lc_crc32(const uint8_t *data, size_t len);
+
+/* The index tag of a session id (what lc_flash_slot_t.session_tag holds). */
+uint32_t lc_flashlog_session_tag(const uint8_t session_id[16]);
 
 #ifdef __cplusplus
 }

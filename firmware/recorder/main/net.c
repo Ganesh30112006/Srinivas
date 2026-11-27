@@ -4,6 +4,7 @@
 #include <sys/time.h>
 
 #include "app.h"
+#include "board.h"
 #include "cJSON.h"
 #include "chunk_store.h"
 #include "config.h"
@@ -16,6 +17,7 @@
 #include "esp_random.h"
 #include "esp_timer.h"
 #include "esp_websocket_client.h"
+#include "mqtt_client.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -31,16 +33,27 @@
 #define STATUS_PERIOD_MS 5000
 #define STATUS_PERIOD_RECORDING_MS 1000 /* drives the web Live page's level meter */
 #define STOP_RETRY_MS 10000
+#define DECL_RETRY_MS 5000 /* resend start/resume if the server hasn't confirmed it */
 
 static const char *TAG = "net";
 static EventGroupHandle_t s_events;
 static QueueHandle_t s_rx;
 static esp_websocket_client_handle_t s_ws;
+static esp_mqtt_client_handle_t s_mqtt;
+static bool s_use_iot;
+static char s_up_topic[64];
+static char s_down_topic[64];
 static esp_timer_handle_t s_wifi_retry;
 static uint32_t s_wifi_attempt;
+static int s_wifi_index; /* which saved network is being tried */
+static volatile uint8_t s_wifi_reason; /* last disconnect reason (0 = none yet) */
 static volatile int s_close_code;
+static volatile bool s_link_reset; /* the server asked for a reconnect (MQTT `close`) */
 static char *s_accum;
 static size_t s_accum_len;
+/* The session the server last confirmed with `lecture.started` (frames wait for it). */
+static uint8_t s_confirmed[16];
+static volatile bool s_confirmed_valid;
 
 /* ── Wi-Fi + SNTP ───────────────────────────────────────────────────────── */
 
@@ -50,23 +63,58 @@ static void time_synced(struct timeval *tv) {
     ESP_LOGI(TAG, "SNTP time synced");
 }
 
+const char *net_wifi_problem(void) {
+    switch (s_wifi_reason) {
+        case 0: return "Connecting...";
+        case WIFI_REASON_NO_AP_FOUND: return "Network not found";
+        case WIFI_REASON_AUTH_FAIL:
+        case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+        case WIFI_REASON_HANDSHAKE_TIMEOUT: return "Wrong password?";
+        default: return "Connection lost";
+    }
+}
+
+const char *net_wifi_ssid(void) {
+    return g_config.wifi_count > 0 ? g_config.wifi[s_wifi_index].ssid : "";
+}
+
+static void wifi_apply(int index) {
+    if (g_config.wifi_count == 0) return;
+    s_wifi_index = index % g_config.wifi_count;
+    const wifi_network_t *n = &g_config.wifi[s_wifi_index];
+    wifi_config_t wc = {0};
+    strlcpy((char *)wc.sta.ssid, n->ssid, sizeof wc.sta.ssid);
+    strlcpy((char *)wc.sta.password, n->pass, sizeof wc.sta.password);
+    wc.sta.threshold.authmode = n->pass[0] == '\0' ? WIFI_AUTH_OPEN : WIFI_AUTH_WPA2_PSK;
+    wc.sta.pmf_cfg.capable = true; /* phone hotspots may use WPA2/WPA3 mixed mode */
+    wc.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
+    esp_wifi_set_config(WIFI_IF_STA, &wc);
+}
+
 static void wifi_retry_cb(void *arg) {
     (void)arg;
+    /* Try the next saved network on each attempt; the backoff grows once all have failed. */
+    if (g_config.wifi_count > 1) wifi_apply(s_wifi_index + 1);
     esp_wifi_connect();
 }
 
 static void wifi_event(void *arg, esp_event_base_t base, int32_t id, void *data) {
     (void)arg;
-    (void)data;
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+        const wifi_event_sta_disconnected_t *d = data;
+        s_wifi_reason = d->reason;
+        ESP_LOGW(TAG, "Wi-Fi %s: %s (reason %u)", net_wifi_ssid(), net_wifi_problem(), d->reason);
         g_facts.wifi_up = false;
         xEventGroupClearBits(s_events, BIT_WIFI);
-        const uint32_t delay = lc_backoff_delay_ms(s_wifi_attempt++, esp_random()) + 250;
+        const uint32_t round = s_wifi_attempt++ / (uint32_t)(g_config.wifi_count > 0 ? g_config.wifi_count : 1);
+        const uint32_t delay = lc_backoff_delay_ms(round, esp_random()) + 250;
         esp_timer_start_once(s_wifi_retry, (uint64_t)delay * 1000);
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
         s_wifi_attempt = 0;
+        s_wifi_reason = 0;
+        ESP_LOGI(TAG, "Wi-Fi %s up", net_wifi_ssid());
         g_facts.wifi_up = true;
         xEventGroupSetBits(s_events, BIT_WIFI);
     }
@@ -83,12 +131,8 @@ static void wifi_start(void) {
     const esp_timer_create_args_t retry = {.callback = wifi_retry_cb, .name = "wifi_retry"};
     ESP_ERROR_CHECK(esp_timer_create(&retry, &s_wifi_retry));
 
-    wifi_config_t wc = {0};
-    strlcpy((char *)wc.sta.ssid, g_config.wifi_ssid, sizeof wc.sta.ssid);
-    strlcpy((char *)wc.sta.password, g_config.wifi_pass, sizeof wc.sta.password);
-    wc.sta.threshold.authmode = g_config.wifi_pass[0] == '\0' ? WIFI_AUTH_OPEN : WIFI_AUTH_WPA2_PSK;
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
+    wifi_apply(0);
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE)); /* steady uplink beats power saving here */
 
@@ -140,6 +184,96 @@ static void ws_event(void *arg, esp_event_base_t base, int32_t id, void *event_d
     }
 }
 
+/* ── MQTT (AWS IoT Core) plumbing ───────────────────────────────────────── */
+
+static void mqtt_event(void *arg, esp_event_base_t base, int32_t id, void *event_data) {
+    (void)arg;
+    (void)base;
+    const esp_mqtt_event_handle_t e = event_data;
+    switch ((esp_mqtt_event_id_t)id) {
+        case MQTT_EVENT_CONNECTED:
+            esp_mqtt_client_subscribe(s_mqtt, s_down_topic, 1);
+            break;
+        case MQTT_EVENT_SUBSCRIBED:
+            /* SUBACK 0x80 = refused by the IoT policy. */
+            if (e->data_len > 0 && (uint8_t)e->data[0] == 0x80) {
+                ESP_LOGE(TAG, "subscribe to %s refused (check the IoT policy)", s_down_topic);
+                xEventGroupSetBits(s_events, BIT_WS_DOWN);
+                break;
+            }
+            xEventGroupClearBits(s_events, BIT_WS_DOWN);
+            xEventGroupSetBits(s_events, BIT_WS_UP);
+            break;
+        case MQTT_EVENT_DISCONNECTED:
+        case MQTT_EVENT_ERROR:
+            xEventGroupClearBits(s_events, BIT_WS_UP);
+            xEventGroupSetBits(s_events, BIT_WS_DOWN);
+            break;
+        case MQTT_EVENT_DATA:
+            if (e->total_data_len <= 0 || e->total_data_len > MAX_TEXT) break;
+            if (e->current_data_offset == 0) {
+                free(s_accum);
+                s_accum = malloc((size_t)e->total_data_len + 1);
+                s_accum_len = 0;
+            }
+            if (s_accum == NULL || e->current_data_offset + e->data_len > e->total_data_len) break;
+            memcpy(s_accum + e->current_data_offset, e->data, (size_t)e->data_len);
+            s_accum_len = (size_t)(e->current_data_offset + e->data_len);
+            if (s_accum_len == (size_t)e->total_data_len) {
+                s_accum[s_accum_len] = '\0';
+                if (xQueueSend(s_rx, &s_accum, 0) != pdTRUE) free(s_accum);
+                s_accum = NULL;
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+static bool mqtt_open(void) {
+    static char uri[160];
+    snprintf(uri, sizeof uri, "mqtts://%s:8883", g_config.iot_endpoint);
+    snprintf(s_up_topic, sizeof s_up_topic, "lc/%s/up", g_config.device_id);
+    snprintf(s_down_topic, sizeof s_down_topic, "lc/%s/down", g_config.device_id);
+    static const char BYE[] = "{\"type\":\"bye\"}";
+    const esp_mqtt_client_config_t cfg = {
+        .broker = {.address = {.uri = uri}, .verification = {.crt_bundle_attach = esp_crt_bundle_attach}},
+        .credentials =
+            {
+                .client_id = g_config.device_id, /* = the IoT thing name; the policy checks it */
+                .authentication = {.certificate = g_config.iot_cert, .key = g_config.iot_key},
+            },
+        .session =
+            {
+                .keepalive = 30,
+                /* IoT Core publishes this if the device drops without saying goodbye. */
+                .last_will = {.topic = s_up_topic, .msg = BYE, .msg_len = sizeof BYE - 1, .qos = 1},
+            },
+        .network = {.timeout_ms = 10000, .disable_auto_reconnect = true},
+        .buffer = {.size = 2048, .out_size = CHUNK_FRAME_MAX + 256},
+        .task = {.stack_size = 6144},
+    };
+    s_close_code = 0;
+    s_link_reset = false;
+    xEventGroupClearBits(s_events, BIT_WS_UP | BIT_WS_DOWN);
+    s_mqtt = esp_mqtt_client_init(&cfg);
+    if (s_mqtt == NULL) return false;
+    esp_mqtt_client_register_event(s_mqtt, ESP_EVENT_ANY_ID, mqtt_event, NULL);
+    if (esp_mqtt_client_start(s_mqtt) != ESP_OK) return false;
+    const EventBits_t bits =
+        xEventGroupWaitBits(s_events, BIT_WS_UP | BIT_WS_DOWN, pdFALSE, pdFALSE, pdMS_TO_TICKS(20000));
+    return (bits & BIT_WS_UP) != 0;
+}
+
+static void mqtt_close(void) {
+    if (s_mqtt == NULL) return;
+    esp_mqtt_client_stop(s_mqtt);
+    esp_mqtt_client_destroy(s_mqtt);
+    s_mqtt = NULL;
+}
+
+/* ── WebSocket plumbing ─────────────────────────────────────────────────── */
+
 static bool ws_open(void) {
     esp_websocket_client_config_t cfg = {0};
     cfg.uri = g_config.server_url;
@@ -166,21 +300,43 @@ static void ws_close(void) {
     if (esp_websocket_client_is_connected(s_ws)) esp_websocket_client_close(s_ws, pdMS_TO_TICKS(2000));
     esp_websocket_client_destroy(s_ws);
     s_ws = NULL;
+}
+
+/* ── transport: one of the two links above ──────────────────────────────── */
+
+static bool link_open(void) {
+    s_confirmed_valid = false;
+    return s_use_iot ? mqtt_open() : ws_open();
+}
+
+static void link_close(void) {
+    if (s_use_iot) mqtt_close();
+    else ws_close();
     char *msg = NULL;
     while (xQueueReceive(s_rx, &msg, 0) == pdTRUE) free(msg);
 }
 
 static bool connected(void) {
-    return s_ws != NULL && (xEventGroupGetBits(s_events) & BIT_WS_UP) != 0;
+    const bool open = s_use_iot ? s_mqtt != NULL : s_ws != NULL;
+    return open && !s_link_reset && (xEventGroupGetBits(s_events) & BIT_WS_UP) != 0;
+}
+
+static bool link_send(const void *data, size_t len, bool binary) {
+    if (s_use_iot) {
+        /* Control messages QoS 1; audio QoS 0 (the protocol's own ACKs make it reliable). */
+        return esp_mqtt_client_publish(s_mqtt, s_up_topic, data, (int)len, binary ? 0 : 1, 0) >= 0;
+    }
+    return binary ? esp_websocket_client_send_bin(s_ws, data, (int)len, pdMS_TO_TICKS(5000)) >= 0
+                  : esp_websocket_client_send_text(s_ws, data, (int)len, pdMS_TO_TICKS(5000)) >= 0;
 }
 
 static bool send_json(cJSON *obj) {
     char *text = cJSON_PrintUnformatted(obj);
     cJSON_Delete(obj);
     if (text == NULL) return false;
-    const int sent = esp_websocket_client_send_text(s_ws, text, (int)strlen(text), pdMS_TO_TICKS(5000));
+    const bool sent = link_send(text, strlen(text), false);
     free(text);
-    return sent >= 0;
+    return sent;
 }
 
 /* ── protocol messages ──────────────────────────────────────────────────── */
@@ -331,6 +487,10 @@ static void handle_message(const char *text) {
         const cJSON *sid = cJSON_GetObjectItemCaseSensitive(m, "session_id");
         uint8_t id[16];
         const session_info_t cur = session_info();
+        if (cJSON_IsString(sid) && uuid_parse(sid->valuestring, id)) {
+            memcpy(s_confirmed, id, 16);
+            s_confirmed_valid = true;
+        }
         if (cJSON_IsString(lid) && cJSON_IsString(sid) && uuid_parse(sid->valuestring, id) && cur.active &&
             memcmp(cur.id, id, 16) == 0) {
             session_set_lecture(lid->valuestring);
@@ -342,6 +502,12 @@ static void handle_message(const char *text) {
         if (cJSON_IsString(action) && cJSON_IsString(lid) && strlen(lid->valuestring) == 36) {
             handle_command(action->valuestring, lid->valuestring);
         }
+    } else if (strcmp(type->valuestring, "close") == 0) {
+        /* MQTT has no close frame: the bridge sends the WebSocket close code as a message. */
+        const cJSON *code = cJSON_GetObjectItemCaseSensitive(m, "code");
+        s_close_code = cJSON_IsNumber(code) ? code->valueint : 4000;
+        s_link_reset = true;
+        ESP_LOGW(TAG, "server asked to reconnect (code %d)", s_close_code);
     } else if (strcmp(type->valuestring, "error") == 0) {
         const cJSON *code = cJSON_GetObjectItemCaseSensitive(m, "code");
         if (cJSON_IsString(code)) {
@@ -367,7 +533,7 @@ static bool wait_config(void) {
         handle_message(msg);
         free(msg);
         if (is_config) return true;
-        if (g_facts.fatal) return false;
+        if (g_facts.fatal || s_link_reset) break;
     }
     if (s_close_code == 4401) {
         g_facts.fatal = true;
@@ -381,6 +547,7 @@ static bool wait_config(void) {
 static void run_connection(uint8_t *frame) {
     bool declared = false;
     uint8_t declared_id[16] = {0};
+    uint32_t declared_at = 0;
     uint32_t last_status = 0;
     bool pause_reported = false; /* the server knows the current session's pause state */
     bool reported_paused = false;
@@ -425,29 +592,37 @@ static void run_connection(uint8_t *frame) {
             have_target = true;
         }
 
-        if (have_target && (!declared || memcmp(declared_id, target, 16) != 0)) {
+        const bool confirmed = declared && s_confirmed_valid && memcmp(s_confirmed, declared_id, 16) == 0;
+        const bool retry_decl = declared && !confirmed && now - declared_at > DECL_RETRY_MS;
+        if (have_target && (!declared || retry_decl || memcmp(declared_id, target, 16) != 0)) {
             const bool ok = is_current ? send_session_decl("start", target, target_known, target_lecture, cur.started_unix_ms)
                                        : send_session_decl("resume", target, target_known, target_lecture, 0);
             if (!ok) break;
             declared = true;
+            declared_at = now;
             memcpy(declared_id, target, 16);
             pause_reported = false;
         }
 
         /* Tell the server whenever the pause state differs from what it last heard (and once per
          * connection, since a pause or resume may have happened while offline). */
-        if (is_current && declared && !cur.stopped && (!pause_reported || reported_paused != cur.paused)) {
+        const bool session_ok = declared && s_confirmed_valid && memcmp(s_confirmed, declared_id, 16) == 0;
+        if (is_current && session_ok && !cur.stopped && (!pause_reported || reported_paused != cur.paused)) {
             if (!send_pause(cur.id, cur.paused)) break;
             pause_reported = true;
             reported_paused = cur.paused;
         }
 
         bool sent_frame = false;
-        if (have_target && chunk_store_in_flight() < CONFIG_LC_MAX_IN_FLIGHT) {
+        /* Frames only once the server has confirmed the session: over MQTT, messages can arrive
+         * out of order, and a frame before its start/resume would be rejected. */
+        const bool ready = declared && s_confirmed_valid && memcmp(s_confirmed, declared_id, 16) == 0 &&
+                           memcmp(declared_id, target, 16) == 0;
+        if (have_target && ready && chunk_store_in_flight() < CONFIG_LC_MAX_IN_FLIGHT) {
             chunk_ref_t ref;
             const size_t len = chunk_store_next_frame(target, frame, CHUNK_FRAME_MAX, &ref);
             if (len > 0) {
-                if (esp_websocket_client_send_bin(s_ws, (const char *)frame, (int)len, pdMS_TO_TICKS(5000)) < 0) break;
+                if (!link_send(frame, len, true)) break;
                 chunk_store_mark_sent(&ref);
                 sent_frame = true;
             }
@@ -457,7 +632,7 @@ static void run_connection(uint8_t *frame) {
         const session_info_t *stopped = NULL;
         if (cur.active && cur.stopped && memcmp(target, cur.id, 16) == 0) stopped = &cur;
         else if (prev.active && memcmp(target, prev.id, 16) == 0) stopped = &prev;
-        if (have_target && stopped != NULL && chunk_store_pending(stopped->id) == 0 &&
+        if (have_target && ready && stopped != NULL && chunk_store_pending(stopped->id) == 0 &&
             (!s_stop.waiting || now - s_stop.sent_at > STOP_RETRY_MS)) {
             if (!send_stop(stopped->id, stopped->last_seq)) break;
             s_stop.waiting = true;
@@ -474,7 +649,7 @@ static void run_connection(uint8_t *frame) {
 
 static void net_task(void *arg) {
     (void)arg;
-    uint8_t *frame = heap_caps_malloc(CHUNK_FRAME_MAX, MALLOC_CAP_SPIRAM);
+    uint8_t *frame = heap_caps_malloc(CHUNK_FRAME_MAX, BOARD_BIG_CAPS);
     configASSERT(frame != NULL);
     wifi_start();
     uint32_t attempt = 0;
@@ -485,18 +660,18 @@ static void net_task(void *arg) {
             g_facts.fatal = false;
             app_set_error("");
         }
-        if (ws_open() && send_hello() && wait_config()) {
+        if (link_open() && send_hello() && wait_config()) {
             attempt = 0;
             g_facts.server_up = true;
             app_set_error("");
-            ESP_LOGI(TAG, "connected to %s", g_config.server_url);
+            ESP_LOGI(TAG, "connected to %s", s_use_iot ? g_config.iot_endpoint : g_config.server_url);
             run_connection(frame);
             ESP_LOGW(TAG, "connection lost");
         }
         g_facts.server_up = false;
         s_stop.waiting = false;
         chunk_store_requeue();
-        ws_close();
+        link_close();
         const uint32_t delay = lc_backoff_delay_ms(attempt++, esp_random());
         vTaskDelay(pdMS_TO_TICKS(delay + 200));
     }
@@ -505,5 +680,6 @@ static void net_task(void *arg) {
 void net_start(void) {
     s_events = xEventGroupCreate();
     s_rx = xQueueCreate(RX_QUEUE_LEN, sizeof(char *));
+    s_use_iot = config_uses_iot(&g_config);
     xTaskCreatePinnedToCore(net_task, "net", 8192, NULL, 5, NULL, 0);
 }

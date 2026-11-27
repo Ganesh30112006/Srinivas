@@ -13,6 +13,10 @@ uint32_t lc_crc32(const uint8_t *data, size_t len) {
     return ~crc;
 }
 
+uint32_t lc_flashlog_session_tag(const uint8_t session_id[16]) {
+    return lc_crc32(session_id, 16);
+}
+
 static void put32(uint8_t *p, uint32_t v) {
     for (int i = 0; i < 4; i++) p[i] = (uint8_t)(v >> (8 * i));
 }
@@ -86,7 +90,7 @@ int lc_flashlog_mount(lc_flashlog_t *log, const lc_flash_ops_t *ops, lc_flash_sl
         if (ops->read(ops->ctx, base + LC_FLASHLOG_ACK_OFFSET, ack_word, 4) != 0) continue;
         slot->write_counter = counter;
         slot->seq = record.seq;
-        memcpy(slot->session_id, record.session_id, 16);
+        slot->session_tag = lc_flashlog_session_tag(record.session_id);
         slot->pending = get32(ack_word) == 0xFFFFFFFFu;
         if (slot->pending) log->pending++;
         if (counter >= newest) {
@@ -117,7 +121,7 @@ int lc_flashlog_append(lc_flashlog_t *log, const lc_flash_record_t *record, cons
     lc_flash_slot_t *slot = &log->index[sector];
     slot->write_counter = log->next_counter;
     slot->seq = record->seq;
-    memcpy(slot->session_id, record->session_id, 16);
+    slot->session_tag = lc_flashlog_session_tag(record->session_id);
     slot->pending = true;
     slot->sent = false;
     log->next_counter++;
@@ -127,11 +131,12 @@ int lc_flashlog_append(lc_flashlog_t *log, const lc_flash_record_t *record, cons
 }
 
 size_t lc_flashlog_apply_ack(lc_flashlog_t *log, const uint8_t session_id[16], const lc_ack_t *ack) {
+    const uint32_t tag = lc_flashlog_session_tag(session_id);
     static const uint8_t zero[4] = {0, 0, 0, 0};
     size_t count = 0;
     for (size_t s = 0; s < log->sector_count; s++) {
         lc_flash_slot_t *slot = &log->index[s];
-        if (!slot->pending || memcmp(slot->session_id, session_id, 16) != 0) continue;
+        if (!slot->pending || slot->session_tag != tag) continue;
         if (!lc_ack_covers(ack, slot->seq)) continue;
         if (log->ops.write(log->ops.ctx, s * LC_FLASHLOG_SECTOR + LC_FLASHLOG_ACK_OFFSET, zero, 4) != 0) continue;
         slot->pending = false;
@@ -143,10 +148,11 @@ size_t lc_flashlog_apply_ack(lc_flashlog_t *log, const uint8_t session_id[16], c
 }
 
 int lc_flashlog_oldest_unsent(const lc_flashlog_t *log, const uint8_t session_id[16]) {
+    const uint32_t tag = lc_flashlog_session_tag(session_id);
     int best = -1;
     for (size_t s = 0; s < log->sector_count; s++) {
         const lc_flash_slot_t *slot = &log->index[s];
-        if (!slot->pending || slot->sent || memcmp(slot->session_id, session_id, 16) != 0) continue;
+        if (!slot->pending || slot->sent || slot->session_tag != tag) continue;
         if (best < 0 || slot->seq < log->index[best].seq) best = (int)s;
     }
     return best;
@@ -183,9 +189,10 @@ void lc_flashlog_requeue_sent(lc_flashlog_t *log) {
 }
 
 size_t lc_flashlog_pending_for(const lc_flashlog_t *log, const uint8_t session_id[16]) {
+    const uint32_t tag = lc_flashlog_session_tag(session_id);
     size_t count = 0;
     for (size_t s = 0; s < log->sector_count; s++) {
-        if (log->index[s].pending && memcmp(log->index[s].session_id, session_id, 16) == 0) count++;
+        if (log->index[s].pending && log->index[s].session_tag == tag) count++;
     }
     return count;
 }

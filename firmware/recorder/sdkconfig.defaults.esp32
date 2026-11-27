@@ -1,0 +1,9 @@
+# ESP32 DevKit V1 (ESP32-WROOM-32): 4 MB flash (BoyaMicro on the tested board), no PSRAM,
+# console on UART0 through the CP2102. Offline audio goes to the MicroSD card (firmware/board/board.h).
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+CONFIG_SPI_FLASH_SUPPORT_BOYA_CHIP=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_esp32.csv"
+
+# No PSRAM: keep the Wi-Fi driver's preallocated buffers small.
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6

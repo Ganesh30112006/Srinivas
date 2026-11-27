@@ -4,24 +4,31 @@
 #include <string.h>
 
 #include "app.h"
+#include "board.h"
 #include "chunk_store.h"
 #include "driver/i2s_std.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "lc_adpcm.h"
 #include "lc_frame.h"
 #include "session.h"
 
-#define PIN_BCLK GPIO_NUM_4
-#define PIN_WS GPIO_NUM_5
-#define PIN_SD GPIO_NUM_6
+#define PIN_BCLK PIN_I2S_BCLK
+#define PIN_WS PIN_I2S_WS
+#define PIN_SD PIN_I2S_DIN
 #define READ_FRAMES 512
+#if CONFIG_SPIRAM
 #define DMA_DESC 8 /* 8 × 512 frames = 256 ms of DMA buffering (covers flash erase stalls) */
+#else
+#define DMA_DESC 6 /* 192 ms: offline audio goes to the SD card, which never stalls the CPU */
+#endif
 #define SILENCE_DBFS (-60.0f)
 #define SILENCE_CHUNKS 120 /* 60 s */
 
 static const char *TAG = "audio";
 
+#if !CONFIG_LC_AUDIO_SOURCE_TEST_CLIP
 static i2s_chan_handle_t open_i2s(void) {
     i2s_chan_handle_t rx = NULL;
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
@@ -46,7 +53,51 @@ static i2s_chan_handle_t open_i2s(void) {
     ESP_ERROR_CHECK(i2s_channel_enable(rx));
     return rx;
 }
+#endif
 
+/* One 500 ms chunk is complete: update the level meter and hand it to the chunk store. */
+static void chunk_done(const int16_t *chunk, double sum_sq, unsigned *silent_chunks) {
+    const float rms = sqrtf((float)(sum_sq / LC_SAMPLES_PER_CHUNK));
+    const float db = rms <= 1.0f ? -90.0f : 20.0f * log10f(rms / 32768.0f);
+    g_facts.level_db10 = (uint16_t)(db <= -90.0f ? 0 : (db + 90.0f) * 10.0f);
+    uint32_t seq;
+    uint8_t sid[16];
+    if (session_take_seq(&seq, sid)) {
+        /* The last sample arrived now, so the chunk started 500 ms ago. */
+        const uint64_t now = app_unix_ms();
+        chunk_store_push(sid, seq, now == 0 ? 0 : now - 500, chunk, LC_SAMPLES_PER_CHUNK);
+        *silent_chunks = db < SILENCE_DBFS ? *silent_chunks + 1 : 0;
+        g_facts.mic_silent = g_facts.vad_enabled && *silent_chunks >= SILENCE_CHUNKS;
+    } else {
+        *silent_chunks = 0;
+        g_facts.mic_silent = false;
+    }
+}
+
+#if CONFIG_LC_AUDIO_SOURCE_TEST_CLIP
+/* Test source: plays main/test_clip.adpcm (back-to-back 4004-byte ADPCM chunks) in real time. */
+extern const uint8_t test_clip_start[] asm("_binary_test_clip_adpcm_start");
+extern const uint8_t test_clip_end[] asm("_binary_test_clip_adpcm_end");
+
+static void audio_task(void *arg) {
+    (void)arg;
+    static int16_t chunk[LC_SAMPLES_PER_CHUNK];
+    const size_t n_chunks = (size_t)(test_clip_end - test_clip_start) / LC_ADPCM_CHUNK_BYTES;
+    ESP_LOGW(TAG, "AUDIO SOURCE IS THE TEST CLIP (%u s, looped), not the microphone", (unsigned)(n_chunks / 2));
+    unsigned silent_chunks = 0;
+    size_t i = 0;
+    TickType_t wake = xTaskGetTickCount();
+    for (;;) {
+        vTaskDelayUntil(&wake, pdMS_TO_TICKS(500));
+        const size_t got = lc_adpcm_decode(test_clip_start + i * LC_ADPCM_CHUNK_BYTES, LC_ADPCM_CHUNK_BYTES, chunk,
+                                           LC_SAMPLES_PER_CHUNK);
+        double sum_sq = 0;
+        for (size_t k = 0; k < got; k++) sum_sq += (double)chunk[k] * chunk[k];
+        if (got == LC_SAMPLES_PER_CHUNK) chunk_done(chunk, sum_sq, &silent_chunks);
+        i = n_chunks == 0 ? 0 : (i + 1) % n_chunks;
+    }
+}
+#else
 static void audio_task(void *arg) {
     (void)arg;
     i2s_chan_handle_t rx = open_i2s();
@@ -79,26 +130,14 @@ static void audio_task(void *arg) {
             sum_sq += (double)s * s;
             if (filled < LC_SAMPLES_PER_CHUNK) continue;
 
-            /* One 500 ms chunk complete. The last sample arrived now, so it started 500 ms ago. */
-            const float rms = sqrtf((float)(sum_sq / LC_SAMPLES_PER_CHUNK));
-            const float db = rms <= 1.0f ? -90.0f : 20.0f * log10f(rms / 32768.0f);
-            g_facts.level_db10 = (uint16_t)(db <= -90.0f ? 0 : (db + 90.0f) * 10.0f);
-            uint32_t seq;
-            uint8_t sid[16];
-            if (session_take_seq(&seq, sid)) {
-                const uint64_t now = app_unix_ms();
-                chunk_store_push(sid, seq, now == 0 ? 0 : now - 500, chunk, LC_SAMPLES_PER_CHUNK);
-                silent_chunks = db < SILENCE_DBFS ? silent_chunks + 1 : 0;
-                g_facts.mic_silent = g_facts.vad_enabled && silent_chunks >= SILENCE_CHUNKS;
-            } else {
-                silent_chunks = 0;
-                g_facts.mic_silent = false;
-            }
+            chunk_done(chunk, sum_sq, &silent_chunks);
             filled = 0;
             sum_sq = 0;
         }
     }
 }
+
+#endif
 
 void audio_start(void) {
     /* Highest application priority, alone on core 1 (Wi-Fi/TLS run on core 0). */
