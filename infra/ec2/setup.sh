@@ -160,6 +160,9 @@ systemctl enable --now smartclass-backup.timer smartclass-retention.timer
 echo "==> Caddy"
 sed "s#__SITE_ADDRESS__#${SITE_ADDRESS}#g" "${APP_DIR}/infra/caddy/Caddyfile" > /etc/caddy/Caddyfile
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+# validate (run as root) creates the access log as root:root 0600, which Caddy (user caddy) can't open.
+install -d -o caddy -g caddy -m 0755 /var/log/caddy
+chown -R caddy:caddy /var/log/caddy
 systemctl enable caddy
 systemctl reload caddy || systemctl restart caddy
 
