@@ -49,7 +49,7 @@ jobs:
           cmd=$(aws ssm send-command --instance-ids "$INSTANCE_ID" \
             --document-name AWS-RunShellScript --timeout-seconds 1800 \
             --comment "deploy ${GITHUB_SHA::7}" \
-            --parameters 'commands=["set -euo pipefail","cd /opt/smartclass-src","git fetch --quiet origin main","git checkout -q -B main origin/main","bash infra/ec2/deploy.sh"]' \
+            --parameters 'commands=["set -eu","cd /opt/smartclass-src","git fetch --quiet origin main","git checkout -q -B main origin/main","bash infra/ec2/deploy.sh"]' \
             --query Command.CommandId --output text)
           echo "SSM command $cmd"
           for _ in $(seq 1 180); do

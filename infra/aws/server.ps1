@@ -52,7 +52,7 @@ switch ($Action) {
     "Updating to the latest main (takes a few minutes)..."
     $cmd = aws ssm send-command --region $Region --instance-ids $instance `
       --document-name AWS-RunShellScript --timeout-seconds 1800 --comment 'deploy on start' `
-      --parameters 'commands=["set -euo pipefail","cd /opt/smartclass-src","git fetch --quiet origin main","git checkout -q -B main origin/main","bash infra/ec2/deploy.sh"]' `
+      --parameters 'commands=["set -eu","cd /opt/smartclass-src","git fetch --quiet origin main","git checkout -q -B main origin/main","bash infra/ec2/deploy.sh"]' `
       --query Command.CommandId --output text
     do {
       Start-Sleep -Seconds 10
