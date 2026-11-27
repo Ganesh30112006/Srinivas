@@ -83,6 +83,7 @@
     "stopConfirm": "Stop recording",
     "cancel": "Keep recording",
     "waiting": "Waiting for the microphone…",
+    "stopped": "Recording stopped. Finishing the transcript…",
     "offlineHint": "Microphone offline. Use its buttons.",
     "errors": {
       "title": "Couldn't send the command to the microphone."

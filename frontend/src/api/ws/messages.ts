@@ -78,6 +78,8 @@ export const LectureStatusMessage = z.object({
   duration_ms: Ms,
   /** Absent on periodic duration updates: the previous pause state still holds. */
   paused: z.boolean().optional(),
+  /** The device confirmed Stop; the status stays `recording` until the transcript is finished. */
+  stopped: z.boolean().optional(),
 });
 
 export const DeviceStatusMessage = z.object({

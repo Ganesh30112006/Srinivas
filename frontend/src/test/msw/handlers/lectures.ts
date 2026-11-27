@@ -102,6 +102,7 @@ export const lectureHandlers = [
       consent_confirmed: true,
       created_at: now,
       paused: false,
+      stopped: false,
       audio_available: true,
     };
     db.lectures.unshift(lecture);

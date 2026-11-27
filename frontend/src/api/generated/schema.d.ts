@@ -783,6 +783,11 @@ export interface components {
              */
             paused: boolean;
             /**
+             * Stopped
+             * @description The device confirmed Stop; status stays 'recording' until the transcript is finished.
+             */
+            stopped: boolean;
+            /**
              * Audio Available
              * @description False once the retention policy deleted the audio.
              */

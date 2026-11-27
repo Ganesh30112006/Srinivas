@@ -22,6 +22,8 @@ export interface LiveSession {
   lectureStatus: LectureStatusValue | null;
   /** Capture paused on the device (lecture status stays `recording`). */
   paused: boolean;
+  /** The device confirmed Stop; the transcript is being finished (status stays `recording`). */
+  stopped: boolean;
   /** duration_ms from the last lecture.status, and the client time it was received. */
   durationMs: number;
   durationReceivedAt: number | null;
@@ -39,6 +41,7 @@ export const EMPTY_SESSION: LiveSession = {
   timeline: EMPTY_TIMELINE,
   lectureStatus: null,
   paused: false,
+  stopped: false,
   durationMs: 0,
   durationReceivedAt: null,
   device: null,
@@ -103,6 +106,7 @@ export function applyMessage(
         ...session,
         lectureStatus: message.status,
         paused: message.status === 'recording' ? (message.paused ?? session.paused) : false,
+        stopped: message.status === 'recording' ? (message.stopped ?? session.stopped) : false,
         durationMs: message.duration_ms,
         durationReceivedAt: receivedAt,
       };
@@ -129,6 +133,7 @@ export function elapsedMs(session: LiveSession, now: number): number {
   if (
     session.lectureStatus !== 'recording' ||
     session.paused ||
+    session.stopped ||
     session.durationReceivedAt === null
   ) {
     return session.durationMs;

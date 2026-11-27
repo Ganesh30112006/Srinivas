@@ -186,6 +186,7 @@ export function buildLectures(now: number): FixtureLectures {
       consent_confirmed: true,
       created_at: new Date(now - (startedAgoMs ?? 0) - HOUR).toISOString(),
       paused: false,
+      stopped: false,
       audio_available: true,
     };
   };

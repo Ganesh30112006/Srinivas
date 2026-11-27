@@ -11,6 +11,8 @@ interface LiveControlsProps {
   lectureId: string;
   status: LectureStatus;
   paused: boolean;
+  /** The device confirmed Stop; the transcript is still being finished. */
+  stopped: boolean;
   /** null while the device's state is unknown (no device.status yet). */
   deviceOnline: boolean | null;
 }
@@ -20,14 +22,29 @@ interface LiveControlsProps {
  * as if its own button was pressed; the new state arrives on the live socket, so the buttons wait
  * for it instead of guessing.
  */
-export function LiveControls({ lectureId, status, paused, deviceOnline }: LiveControlsProps) {
+export function LiveControls({
+  lectureId,
+  status,
+  paused,
+  stopped,
+  deviceOnline,
+}: LiveControlsProps) {
   const { t } = useTranslation('live');
   const control = useRecordingControl(lectureId);
   const [confirmStop, setConfirmStop] = useState(false);
   // The state at the moment a command was accepted: we wait until the device reports a change.
   const [sent, setSent] = useState<{ status: LectureStatus; paused: boolean } | null>(null);
   const waiting = sent !== null && sent.status === status && sent.paused === paused;
-  const active = status === 'recording';
+  const active = status === 'recording' && !stopped;
+  if (status === 'recording' && stopped) {
+    return (
+      <div className={styles.controls} role="group" aria-label={t('controls.label')}>
+        <span className={styles.controlsHint} role="status">
+          {t('controls.stopped')}
+        </span>
+      </div>
+    );
+  }
   if (status !== 'scheduled' && !active) return null;
 
   const send = (action: ControlAction): void => {
