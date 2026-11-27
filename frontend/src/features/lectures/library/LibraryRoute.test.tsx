@@ -26,12 +26,15 @@ describe('LibraryRoute', () => {
     await waitFor(() => {
       expect(new URLSearchParams(router.state.location.search).get('q')).toBe('routing');
     });
-    expect(
-      await screen.findByText('Routing Algorithms', undefined, { timeout: 5000 }),
-    ).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.queryByText('CPU Scheduling Algorithms')).not.toBeInTheDocument();
-    });
+    // The list re-renders when the filtered results replace the unfiltered ones, so an element
+    // found once can be detached a moment later: query it fresh until the list has settled.
+    await waitFor(
+      () => {
+        expect(screen.getByText('Routing Algorithms')).toBeInTheDocument();
+        expect(screen.queryByText('CPU Scheduling Algorithms')).not.toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
     await waitFor(() => {
       expect(countText()).toBe('1 lecture');
     });
@@ -44,12 +47,15 @@ describe('LibraryRoute', () => {
     await waitFor(() => {
       expect(new URLSearchParams(router.state.location.search).get('status')).toBe('processing');
     });
-    expect(
-      await screen.findByText('Routing Algorithms', undefined, { timeout: 5000 }),
-    ).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.queryByText('CPU Scheduling Algorithms')).not.toBeInTheDocument();
-    });
+    // The list re-renders when the filtered results replace the unfiltered ones, so an element
+    // found once can be detached a moment later: query it fresh until the list has settled.
+    await waitFor(
+      () => {
+        expect(screen.getByText('Routing Algorithms')).toBeInTheDocument();
+        expect(screen.queryByText('CPU Scheduling Algorithms')).not.toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
     expect(screen.getByLabelText('Status')).toHaveValue('processing');
   });
 
