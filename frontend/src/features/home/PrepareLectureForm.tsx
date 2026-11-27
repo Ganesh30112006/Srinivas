@@ -19,7 +19,7 @@ function useSchema() {
   return useMemo(
     () =>
       z.object({
-        subject_id: z.string().min(1, t('prepare.validation.subject')),
+        subject: z.string().trim().min(2, t('prepare.validation.subject')).max(120),
         title: z
           .string()
           .trim()
@@ -35,6 +35,19 @@ function useSchema() {
 
 type FormValues = z.input<ReturnType<typeof useSchema>>;
 type Values = z.output<ReturnType<typeof useSchema>>;
+
+/** A typed subject that matches an existing one (code, name or "CODE · Name") uses its id;
+ * anything else is sent as a name and the server reuses or creates the subject. */
+function subjectField(typed: string, subjects: readonly Subject[]) {
+  const key = typed.trim().toLowerCase();
+  const match = subjects.find(
+    (s) =>
+      s.code.toLowerCase() === key ||
+      s.name.toLowerCase() === key ||
+      `${s.code} · ${s.name}`.toLowerCase() === key,
+  );
+  return match !== undefined ? { subject_id: match.id } : { subject_name: typed.trim() };
+}
 
 interface PrepareLectureFormProps {
   subjects: readonly Subject[];
@@ -52,7 +65,7 @@ export function PrepareLectureForm({ subjects, devices }: PrepareLectureFormProp
     resolver: zodResolver(schema),
     mode: 'onTouched',
     defaultValues: {
-      subject_id: '',
+      subject: '',
       title: '',
       language: 'en',
       device_id: usable.length === 1 ? (usable[0]?.id ?? '') : '',
@@ -60,13 +73,16 @@ export function PrepareLectureForm({ subjects, devices }: PrepareLectureFormProp
   });
   const errors = formState.errors;
 
-  const onSubmit = (values: Values): void => {
-    prepare.mutate(values, {
-      onSuccess: (lecture) => {
-        toast.success(t('prepare.success'));
-        void navigate(paths.live(lecture.id));
+  const onSubmit = ({ subject, ...rest }: Values): void => {
+    prepare.mutate(
+      { ...rest, ...subjectField(subject, subjects) },
+      {
+        onSuccess: (lecture) => {
+          toast.success(t('prepare.success'));
+          void navigate(paths.live(lecture.id));
+        },
       },
-    });
+    );
   };
 
   if (devices.length === 0) return <Banner tone="info">{t('prepare.noDevices')}</Banner>;
@@ -74,16 +90,26 @@ export function PrepareLectureForm({ subjects, devices }: PrepareLectureFormProp
   return (
     <form className={styles.form} noValidate onSubmit={(e) => void handleSubmit(onSubmit)(e)}>
       {prepare.isError && <ErrorBanner title={t('prepare.errors.failed')} error={prepare.error} />}
-      <Field label={t('prepare.subject')} error={errors.subject_id?.message}>
+      <Field
+        label={t('prepare.subject')}
+        hint={t('prepare.subjectHint')}
+        error={errors.subject?.message}
+      >
         {(c) => (
-          <Select {...c} {...register('subject_id')}>
-            <option value="">{t('prepare.subjectPlaceholder')}</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.code} · {s.name}
-              </option>
-            ))}
-          </Select>
+          <>
+            <TextInput
+              {...c}
+              {...register('subject')}
+              list="prepare-subjects"
+              placeholder={t('prepare.subjectPlaceholder')}
+              autoComplete="off"
+            />
+            <datalist id="prepare-subjects">
+              {subjects.map((s) => (
+                <option key={s.id} value={`${s.code} · ${s.name}`} />
+              ))}
+            </datalist>
+          </>
         )}
       </Field>
       <Field

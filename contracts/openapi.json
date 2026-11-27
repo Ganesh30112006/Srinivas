@@ -3313,9 +3313,31 @@
       "LectureCreate": {
         "properties": {
           "subject_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Subject Id"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Id",
+            "description": "An existing subject, or give subject_name."
+          },
+          "subject_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Name",
+            "description": "Typed subject: reused if a subject has this name or code, else created."
           },
           "title": {
             "type": "string",
@@ -3346,7 +3368,6 @@
         },
         "type": "object",
         "required": [
-          "subject_id",
           "title",
           "language",
           "device_id",

@@ -526,3 +526,32 @@ def test_lecturer_changes_device_wifi(api, sessions_factory, redis_server) -> No
             break
     assert message is not None
     assert json.loads(message["data"]) == {"type": "wifi", "ssid": "Lab-2G", "password": "lab-pass-123"}
+
+
+def test_lecture_with_typed_subject_reuses_or_creates_it(api, sessions_factory) -> None:  # type: ignore[no-untyped-def]
+    client, seed, _ = api
+    headers = login(client, "lecturer")
+    base = {
+        "title": "Paging basics",
+        "language": "en",
+        "device_id": str(seed.device_id),
+        "consent_confirmed": True,
+    }
+
+    def prepare(**subject: str) -> dict:  # type: ignore[type-arg]
+        response = client.post("/lectures", json={**base, **subject}, headers=headers)
+        assert response.status_code == 201, response.text
+        client.delete(f"/lectures/{response.json()['id']}", headers=headers)  # frees the device
+        return response.json()
+
+    created = prepare(subject_name="  Computer   Architecture ")
+    subject = created["subject"]
+    assert subject["name"] == "Computer Architecture" and subject["code"] == "CA"
+    assert prepare(subject_name="computer architecture")["subject"]["id"] == subject["id"]
+    assert prepare(subject_name="ca")["subject"]["id"] == subject["id"]  # matched by code
+    assert prepare(subject_name="Cloud Analytics")["subject"]["code"] == "CA2"
+    both = client.post(
+        "/lectures", json={**base, "subject_name": "X Y", "subject_id": subject["id"]}, headers=headers
+    )
+    assert both.status_code == 422
+    assert client.post("/lectures", json=base, headers=headers).status_code == 422

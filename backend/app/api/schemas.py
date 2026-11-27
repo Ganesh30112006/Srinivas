@@ -7,7 +7,15 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 Role = Literal["lecturer", "student", "admin"]
 LanguageCode = Literal["en", "te", "hi"]
@@ -106,13 +114,27 @@ class LecturePage(Model):
 
 
 class LectureCreate(Model):
-    subject_id: uuid.UUID
+    subject_id: uuid.UUID | None = Field(
+        default=None, description="An existing subject, or give subject_name."
+    )
+    subject_name: Trimmed | None = Field(
+        default=None,
+        min_length=2,
+        max_length=120,
+        description="Typed subject: reused if a subject has this name or code, else created.",
+    )
     title: Trimmed = Field(min_length=3, max_length=160)
     language: LanguageCode
     device_id: uuid.UUID
     consent_confirmed: Literal[True] = Field(
         description="Recording consent confirmed by the lecturer (required)."
     )
+
+    @model_validator(mode="after")
+    def _one_subject(self) -> LectureCreate:
+        if (self.subject_id is None) == (self.subject_name is None):
+            raise ValueError("Give either subject_id or subject_name.")
+        return self
 
 
 class LectureUpdate(Model):

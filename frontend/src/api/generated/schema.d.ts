@@ -843,9 +843,14 @@ export interface components {
         LectureCreate: {
             /**
              * Subject Id
-             * Format: uuid
+             * @description An existing subject, or give subject_name.
              */
-            subject_id: string;
+            subject_id?: string | null;
+            /**
+             * Subject Name
+             * @description Typed subject: reused if a subject has this name or code, else created.
+             */
+            subject_name?: string | null;
             /** Title */
             title: string;
             /**

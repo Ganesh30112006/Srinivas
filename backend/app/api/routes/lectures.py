@@ -113,8 +113,7 @@ async def _device_busy(db: AsyncSession, device_id: uuid.UUID) -> bool:
 async def create_lecture(
     body: schemas.LectureCreate, user: LecturerUser, db: Db, ctx: Ctx
 ) -> schemas.Lecture:
-    if await db.get(Subject, body.subject_id) is None:
-        raise ApiError(422, "unknown_subject", "Choose a subject from the list.")
+    subject = await _resolve_subject(db, body, user)
     device = await db.get(Device, body.device_id)
     assigned = await db.execute(
         select(DeviceLecturer).where(
@@ -127,7 +126,7 @@ async def create_lecture(
         raise ApiError(409, "device_busy", "This device is already recording another lecture.")
     lecture = Lecture(
         title=body.title.strip(),
-        subject_id=body.subject_id,
+        subject_id=subject.id,
         lecturer_id=user.id,
         device_id=device.id,
         language_hint=body.language,
@@ -142,6 +141,41 @@ async def create_lecture(
     # The OLED shows the title; the lecturer then presses Start on the device.
     await send_device_control(ctx.redis, str(device.id), assign_msg(lecture.id, lecture.title))
     return (await lecture_views(db, [lecture]))[0]
+
+
+async def _resolve_subject(db: AsyncSession, body: schemas.LectureCreate, user: User) -> Subject:
+    """The chosen subject, or the typed one: matched by name or code (any case), else created."""
+    if body.subject_id is not None:
+        found = await db.get(Subject, body.subject_id)
+        if found is None:
+            raise ApiError(422, "unknown_subject", "Choose a subject from the list.")
+        return found
+    name = " ".join((body.subject_name or "").split())
+    match = (
+        (
+            await db.execute(
+                select(Subject).where(
+                    or_(func.lower(Subject.name) == name.lower(), func.lower(Subject.code) == name.lower())
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if match is not None:
+        return match
+    base = "".join(w[0] for w in name.split() if w[0].isalnum()).upper()[:8] or "SUB"
+    codes = set((await db.execute(select(Subject.code).where(Subject.code.like(f"{base}%")))).scalars())
+    code = (
+        base
+        if base not in codes
+        else next(f"{base}{n}" for n in range(2, 10_000) if f"{base}{n}" not in codes)
+    )
+    subject = Subject(code=code, name=name, lecturer_id=user.id)
+    db.add(subject)
+    await db.flush()
+    db.add(AuditLog(actor_id=user.id, action="subject.create", target=code))
+    return subject
 
 
 @router.get("/{lecture_id}", response_model=schemas.Lecture, responses=E404)

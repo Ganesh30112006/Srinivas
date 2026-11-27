@@ -90,6 +90,17 @@ class FasterWhisperTranscriber:
     def transcribe(
         self, audio: np.ndarray, *, language: str | None, prompt: str | None, beam_size: int
     ) -> list[Word]:
+        words = self._transcribe(audio, language=language, prompt=prompt, beam_size=beam_size)
+        if not words and language is not None:
+            # The lecture's language may not be what was spoken (Telugu chosen, English spoken):
+            # forced to the wrong language, greedy decoding returned no words at all for clear
+            # speech. Silence costs almost nothing here (VAD drops it before decoding).
+            words = self._transcribe(audio, language=None, prompt=prompt, beam_size=beam_size)
+        return words
+
+    def _transcribe(
+        self, audio: np.ndarray, *, language: str | None, prompt: str | None, beam_size: int
+    ) -> list[Word]:
         segments, _info = self._model.transcribe(
             audio,
             language=language,

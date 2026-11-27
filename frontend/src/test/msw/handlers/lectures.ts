@@ -8,7 +8,8 @@ import { buildExport, chunkedStream } from './exportFile';
 import { API, body, csrfFailure, error, json, latency, param, requireUser } from './util';
 
 const LectureCreateBody = z.object({
-  subject_id: z.string().min(1),
+  subject_id: z.string().min(1).optional(),
+  subject_name: z.string().trim().min(2).max(120).optional(),
   title: z.string().trim().min(3, 'title must be at least 3 characters').max(160),
   language: z.enum(['en', 'te', 'hi']),
   device_id: z.string().min(1),
@@ -73,7 +74,26 @@ export const lectureHandlers = [
     const parsed = await body(request, LectureCreateBody);
     if ('invalid' in parsed) return parsed.invalid;
     const db = getDb();
-    const subject = db.subjects.find((s) => s.id === parsed.data.subject_id);
+    const { subject_id, subject_name } = parsed.data;
+    if ((subject_id === undefined) === (subject_name === undefined)) {
+      return error(422, 'validation_error', 'Give either subject_id or subject_name.');
+    }
+    const typed = subject_name?.toLowerCase();
+    let subject = db.subjects.find((s) =>
+      typed === undefined
+        ? s.id === subject_id
+        : s.name.toLowerCase() === typed || s.code.toLowerCase() === typed,
+    );
+    if (subject === undefined && subject_name !== undefined) {
+      const code = subject_name
+        .split(/\s+/)
+        .map((w) => w[0] ?? '')
+        .join('')
+        .toUpperCase()
+        .slice(0, 8);
+      subject = { id: crypto.randomUUID(), code, name: subject_name };
+      db.subjects.push(subject);
+    }
     if (subject === undefined)
       return error(422, 'unknown_subject', 'Choose a subject from the list.');
     const device = db.devices.find((d) => d.id === parsed.data.device_id);
