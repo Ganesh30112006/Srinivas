@@ -147,7 +147,7 @@ echo "==> Frontend build"
   cd "${APP_DIR}/frontend"
   HUSKY=0 npm ci --no-audit --no-fund
   npm run build
-  rsync -a --delete dist/ "${WEB_DIR}/"
+  rsync -a --delete --chown=root:root --chmod=D755,F644 dist/ "${WEB_DIR}/"  # public files: Caddy must read them
 )
 
 echo "==> systemd units"
