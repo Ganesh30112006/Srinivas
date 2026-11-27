@@ -22,6 +22,10 @@ Parameters:
     Type: String
     Default: main
     Description: branch the server is first installed from
+  GitHubImmutableRepo:
+    Type: String
+    Default: Ganesh30112006@204135162/Srinivas@1469710083
+    Description: owner@id/repo@id, used in the OIDC subject when immutable subjects are on
   GitHubOidcProviderArn:
     Type: String
     Description: ARN of the existing token.actions.githubusercontent.com OIDC provider
@@ -112,7 +116,7 @@ Resources:
   GitHubDeployRole:
     Type: AWS::IAM::Role
     Properties:
-      Description: GitHub Actions (main branch) deploys to the Smart Classroom server via SSM
+      Description: GitHub Actions (production environment, main only) deploys to the Smart Classroom server via SSM
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -122,7 +126,13 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepo}:ref:refs/heads/main
+                # The deploy job runs in the "production" environment (limited to main in the
+                # repository settings), which is what GitHub puts in the token's subject.
+                # Repositories with immutable OIDC subjects send owner@id/repo@id instead (see
+                # GET /repos/{repo}/actions/oidc/customization/sub); both forms are accepted.
+                token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${GitHubRepo}:environment:production
+                  - !Sub repo:${GitHubImmutableRepo}:environment:production
       Policies:
         - PolicyName: deploy-via-ssm
           PolicyDocument:

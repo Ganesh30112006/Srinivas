@@ -9,6 +9,7 @@
 #include "config.h"
 #include "driver/ledc.h"
 #include "esp_log.h"
+#include "esp_mac.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "net.h"
@@ -89,6 +90,17 @@ static rgb_t led_for(device_state_t st, unsigned tick) {
     }
 }
 
+/* The serial the web app's "Register device" asks for: the Wi-Fi MAC as 12 hex digits. */
+static const char *serial(void) {
+    static char sn[13];
+    if (sn[0] == '\0') {
+        uint8_t mac[6] = {0};
+        esp_read_mac(mac, ESP_MAC_WIFI_STA);
+        snprintf(sn, sizeof sn, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    }
+    return sn;
+}
+
 static void wifi_bars(char *out, size_t len) {
     const int rssi = g_facts.wifi_rssi;
     const int bars = !g_facts.wifi_up ? 0 : rssi >= -55 ? 4 : rssi >= -65 ? 3 : rssi >= -75 ? 2 : 1;
@@ -160,6 +172,8 @@ static void draw(device_state_t st) {
             ssd1306_text(0, 2, net_wifi_ssid(), 1);
             ssd1306_text(0, 3, net_wifi_problem(), 1);
             ssd1306_text(0, 4, "Start still records", 1);
+            snprintf(line, sizeof line, "SN %s", serial());
+            ssd1306_text(0, 5, line, 1);
             ssd1306_text(0, 6, "Change Wi-Fi: hold", 1);
             ssd1306_text(0, 7, "button 5 s", 1);
             break;
@@ -194,7 +208,7 @@ static void draw(device_state_t st) {
 #if CONFIG_LC_AUDIO_SOURCE_TEST_CLIP
             ssd1306_text(0, 7, "TEST CLIP, NOT MIC", 1);
 #else
-            snprintf(line, sizeof line, "Mic %.4s fw %s", g_config.device_id, FIRMWARE_VERSION);
+            snprintf(line, sizeof line, "SN %s v%s", serial(), FIRMWARE_VERSION);
             ssd1306_text(0, 7, line, 1);
 #endif
             break;
