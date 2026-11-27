@@ -96,20 +96,12 @@ export function PrepareLectureForm({ subjects, devices }: PrepareLectureFormProp
         error={errors.subject?.message}
       >
         {(c) => (
-          <>
-            <TextInput
-              {...c}
-              {...register('subject')}
-              list="prepare-subjects"
-              placeholder={t('prepare.subjectPlaceholder')}
-              autoComplete="off"
-            />
-            <datalist id="prepare-subjects">
-              {subjects.map((s) => (
-                <option key={s.id} value={`${s.code} · ${s.name}`} />
-              ))}
-            </datalist>
-          </>
+          <TextInput
+            {...c}
+            {...register('subject')}
+            placeholder={t('prepare.subjectPlaceholder')}
+            autoComplete="off"
+          />
         )}
       </Field>
       <Field

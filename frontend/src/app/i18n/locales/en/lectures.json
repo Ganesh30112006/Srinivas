@@ -136,6 +136,6 @@
     },
     "consent": "Students know this lecture is recorded",
     "consentHint": "Required.",
-    "subjectHint": "Type a subject or pick one you used before. New subjects are added for you."
+    "subjectHint": "Type the subject name. A subject typed before is reused; a new one is added for you."
   }
 }
