@@ -101,6 +101,14 @@ static const char *serial(void) {
     return sn;
 }
 
+/* Top of every screen shown while the recorder is not connected: what it is waiting for and the
+   serial to register it with. */
+static void not_connected_header(char *line, size_t len) {
+    ssd1306_text(0, 0, "READY TO CONNECT", 1);
+    snprintf(line, len, "SN %s", serial());
+    ssd1306_text(0, 1, line, 1);
+}
+
 static void wifi_bars(char *out, size_t len) {
     const int rssi = g_facts.wifi_rssi;
     const int bars = !g_facts.wifi_up ? 0 : rssi >= -55 ? 4 : rssi >= -65 ? 3 : rssi >= -75 ? 2 : 1;
@@ -119,6 +127,8 @@ static void draw(device_state_t st) {
         ssd1306_text(0, 3, wifi_setup_ap_name(), 1);
         snprintf(line, sizeof line, "Password %s", wifi_setup_ap_pass());
         ssd1306_text(0, 4, line, 1);
+        snprintf(line, sizeof line, "SN %s", serial());
+        ssd1306_text(0, 5, line, 1);
         ssd1306_text(0, 6, "Then open", 1);
         ssd1306_text(0, 7, "192.168.4.1", 1);
         if (s_oled_ok && ssd1306_flush() != ESP_OK) ESP_LOGW(TAG, "OLED write failed");
@@ -164,24 +174,39 @@ static void draw(device_state_t st) {
             break;
         case ST_ERROR:
             app_get_error(error, sizeof error);
-            ssd1306_text(0, 0, "ERROR", 2);
-            ssd1306_text(0, 3, error[0] != '\0' ? error : "Retrying...", 1);
+            if (strcmp(error, "Device not authorised") == 0) {
+                /* Not registered on this server (or wrong token): say what to do with the SN. */
+                not_connected_header(line, sizeof line);
+                ssd1306_text(0, 3, "Not registered:", 1);
+                ssd1306_text(0, 4, "add this SN in the", 1);
+                ssd1306_text(0, 5, "web app (Devices >", 1);
+                ssd1306_text(0, 6, "Register device)", 1);
+            } else {
+                ssd1306_text(0, 0, "ERROR", 2);
+                ssd1306_text(0, 3, error[0] != '\0' ? error : "Retrying...", 1);
+                snprintf(line, sizeof line, "SN %s", serial());
+                ssd1306_text(0, 7, line, 1);
+            }
+            break;
+        case ST_BOOT:
+            not_connected_header(line, sizeof line);
+            ssd1306_text(0, 3, "Starting...", 1);
             break;
         case ST_WIFI_CONNECTING:
-            ssd1306_text(0, 0, "No Wi-Fi", 1);
-            ssd1306_text(0, 2, net_wifi_ssid(), 1);
+            not_connected_header(line, sizeof line);
+            snprintf(line, sizeof line, "Wi-Fi: %s", net_wifi_ssid());
+            ssd1306_text(0, 2, line, 1);
             ssd1306_text(0, 3, net_wifi_problem(), 1);
-            ssd1306_text(0, 4, "Start still records", 1);
-            snprintf(line, sizeof line, "SN %s", serial());
-            ssd1306_text(0, 5, line, 1);
+            ssd1306_text(0, 5, "Start still records", 1);
             ssd1306_text(0, 6, "Change Wi-Fi: hold", 1);
             ssd1306_text(0, 7, "button 5 s", 1);
             break;
         case ST_SERVER_CONNECTING:
+            not_connected_header(line, sizeof line);
             wifi_bars(line, sizeof line);
-            ssd1306_text(0, 0, line, 1);
-            ssd1306_text(0, 2, "Server unreachable", 1);
-            ssd1306_text(0, 3, "Start still records", 1);
+            ssd1306_text(0, 2, line, 1);
+            ssd1306_text(0, 3, "Server unreachable", 1);
+            ssd1306_text(0, 5, "Start still records", 1);
             break;
         case ST_READY:
         default:
