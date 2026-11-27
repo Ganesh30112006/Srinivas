@@ -82,7 +82,7 @@ echo "==> Application code in ${APP_DIR}"
 if [[ "${REPO_DIR}" != "${APP_DIR}" ]]; then
   rsync -a --delete \
     --exclude '.git' --exclude 'node_modules' --exclude '.venv' --exclude '__pycache__' \
-    --exclude 'frontend/dist' --exclude 'backend/data' --exclude 'backend/.env' \
+    --exclude 'frontend/dist' --exclude 'backend/data' --exclude 'backend/.env' --exclude 'backend/secrets' \
     "${REPO_DIR}/" "${APP_DIR}/"
 fi
 chown -R root:"${APP_USER}" "${APP_DIR}"

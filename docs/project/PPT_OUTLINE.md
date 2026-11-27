@@ -9,9 +9,9 @@ Each slide has a title, what goes on it, and what to say. Keep text on slides sh
 | 3 | Objectives | O1–O8 from the report, as one line each | Point out the two hard ones: no audio loss offline, and live latency | 0:45 |
 | 4 | Existing solutions | Table: lecture capture systems, cloud speech APIs, Whisper; their gaps | We combine open ASR, an offline-safe device and grounded AI | 1:00 |
 | 5 | Architecture | The architecture diagram (report Chapter 4) | Follow one audio chunk: device → gateway → database → ASR → browser | 1:30 |
-| 6 | Hardware | Photo of the built device + the pin table from CIRCUIT.md | ESP32-S3 for PSRAM and dual cores; INMP441 because it is digital | 1:00 |
+| 6 | Hardware | Photo of the built device + the pin table from CIRCUIT.md | ESP32 (dual core, Wi-Fi) with a MicroSD card for offline audio; INMP441 because it is digital | 1:00 |
 | 7 | Device states | State machine diagram (UML §5); a photo of the OLED in REC and REC (offline) | The lecturer never has to think about the network | 0:45 |
-| 8 | No audio loss | Outage sequence diagram (UML §4) | PSRAM ring, 2-second flash spill, live-first sending, selective ACKs, idempotent storage | 1:30 |
+| 8 | No audio loss | Outage sequence diagram (UML §4) | RAM ring, 2-second spill to the SD card, live-first sending, selective ACKs, idempotent storage | 1:30 |
 | 9 | Live transcription | Diagram: sliding window + local agreement; screenshot of grey partials becoming black finals | Whisper is not a streaming model; local agreement makes it one | 1:15 |
 | 10 | AI study material | Screenshots: Notes, Flashcards, Revision, Ask with "Jump to" links | Everything is grounded in the transcript and links back to the moment it came from | 1:15 |
 | 11 | Web application | 4 screenshots: Live page with device monitor, Library, Search, Devices | Roles: student, lecturer, admin | 1:00 |
@@ -28,7 +28,7 @@ Each slide has a title, what goes on it, and what to say. Keep text on slides sh
 | Question | Answer |
 |---|---|
 | Why not use a phone as the microphone? | A dedicated device is always in the room, starts with one button, keeps recording offline, and does not depend on a lecturer's phone settings or battery. |
-| Why not MicroSD? | PSRAM plus internal flash gives about 12.7 minutes of buffer, which covers normal classroom outages, with fewer parts that can fail or be removed. It is listed as future work for long outages. |
+| Why a MicroSD card? | The ESP32 DevKit used has no PSRAM and only 4 MB of flash, which would hold about 4 minutes. The card holds 20 minutes, and the device falls back to internal flash if the card is missing. |
 | How do you know no audio was lost? | Every chunk has a sequence number. The server stores each `(lecture, seq)` once and the device frees only acknowledged chunks. `eval/recovery_report.py` checks for missing and duplicate chunks. |
 | How accurate is Telugu? | Give the measured CER from Chapter 9 and the model used; explain code-switching and the fixed decode language. |
 | What if the AI is wrong? | Material is a draft until the lecturer publishes it; lecturers can edit it; Ask answers cite transcript moments and warn when they cite none. |

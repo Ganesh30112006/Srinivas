@@ -10,7 +10,7 @@
 
 Students in Indian classrooms often miss parts of a lecture: they fall behind while taking notes, they are absent, or the lecturer switches between English, Telugu and Hindi. This project builds a complete system that records a lecture with a small device on the lecturer's desk and shows a live, multilingual transcript in students' browsers within seconds. After the lecture it generates study material.
 
-The device is an ESP32-S3 microcontroller with an INMP441 I²S MEMS microphone, an OLED display, an RGB status LED and three buttons (Start, Stop, Pause/Resume). It streams 0.5-second audio chunks over a secure WebSocket. If Wi-Fi drops, it keeps recording into PSRAM and internal flash and resends the backlog when the connection returns, so no audio is lost. The server runs on a single AWS EC2 instance without containers:
+The device is an ESP32 microcontroller (ESP32 DevKit V1) with an INMP441 I²S MEMS microphone, an OLED display, a MicroSD card, status LEDs and one main button (start, pause, resume; hold to stop). It streams 0.5-second audio chunks over a WebSocket. If Wi-Fi drops, it keeps recording onto the MicroSD card and resends the backlog when the connection returns, so no audio is lost. The server runs on a single AWS EC2 instance without containers:
 - a device gateway, a REST/WebSocket API, a speech-recognition worker and an AI worker, all in Python with FastAPI;
 - PostgreSQL with pgvector, and Redis.
 
@@ -21,7 +21,7 @@ Speech recognition uses faster-whisper (Whisper large-v3 class models) with a lo
 
 The software is covered by automated tests: backend, evaluation tooling, frontend unit tests, and end-to-end browser tests including accessibility checks. Evaluation scripts measure word error rate, end-to-end latency and recovery after network outages.
 
-**Keywords:** IoT, ESP32-S3, I²S microphone, speech-to-text, Whisper, code-switching, WebSocket, Amazon Bedrock, retrieval-augmented generation, lecture capture.
+**Keywords:** IoT, ESP32, I²S microphone, speech-to-text, Whisper, code-switching, WebSocket, Amazon Bedrock, retrieval-augmented generation, lecture capture.
 
 ---
 
@@ -125,7 +125,7 @@ Design and build a low-cost classroom system that:
 |---|---|---|
 | N1 | Live transcript latency (speech → screen) | a few seconds; locally 9.3 s p50 with `small` on a laptop CPU, limited by decoding (§9.3); *to be measured* on the server |
 | N2 | Audio loss during a Wi-Fi outage | zero chunks lost, zero duplicates, within the buffer capacity (§6.4) |
-| N3 | Offline buffer | about 12.7 minutes of audio (PSRAM + internal flash) |
+| N3 | Offline buffer | about 20 minutes of audio on the MicroSD card (4.4 minutes in internal flash without a card) |
 | N4 | Security | HTTPS/WSS only; per-device tokens stored as hashes; server-side sessions with CSRF protection |
 | N5 | Accessibility | WCAG 2.1 AA, checked automatically with axe on every page |
 | N6 | Frontend size | initial JavaScript ≤ 200 KB gzip |
@@ -135,7 +135,7 @@ Design and build a low-cost classroom system that:
 
 | Hardware | Software |
 |---|---|
-| ESP32-S3-DevKitC-1 N8R8 (8 MB flash, 8 MB PSRAM) | ESP-IDF 5.x (C) |
+| ESP32 DevKit V1 (ESP32-WROOM-32, 4 MB flash, no PSRAM) with a MicroSD card | ESP-IDF 5.5 (C) |
 | INMP441 I²S MEMS microphone | Python 3.12, FastAPI, SQLAlchemy, Alembic |
 | SSD1306 0.96" OLED (I²C) | PostgreSQL 16 + pgvector, Redis |
 | Common-cathode RGB LED, 3 push buttons | faster-whisper (CTranslate2) |
@@ -150,7 +150,7 @@ Design and build a low-cost classroom system that:
 ```mermaid
 flowchart LR
   subgraph Classroom
-    MIC[INMP441 mic] -->|I2S 16 kHz| ESP[ESP32-S3 recorder<br/>PSRAM ring + flash spill]
+    MIC[INMP441 mic] -->|I2S 16 kHz| ESP[ESP32 recorder<br/>RAM ring + SD card spill]
   end
   ESP -->|wss /ws/device| GW[Device gateway]
   subgraph Server[EC2, Ubuntu 24.04, systemd]
@@ -187,20 +187,23 @@ The circuit and wiring are in [CIRCUIT.md](CIRCUIT.md). Summary:
 
 | Part | Connection |
 |---|---|
-| INMP441 | SCK→GPIO4, WS→GPIO5, SD→GPIO6 (100 kΩ pull-down), L/R→GND, VDD→3V3 with a 100 nF decoupling capacitor |
-| SSD1306 OLED | SDA→GPIO8, SCL→GPIO9, address 0x3C |
-| Buttons | Start→GPIO1, Stop→GPIO2, Pause/Resume→GPIO7, each to GND with the internal pull-up |
-| RGB LED | R/G/B→GPIO16/17/18 through 220 Ω/100 Ω/100 Ω; common cathode to GND |
+| INMP441 | SCK→D26, WS→D25, SD→D33 (100 kΩ pull-down), L/R→GND, VDD→3V3 with a 100 nF decoupling capacitor |
+| SSD1306 OLED | SDA→D21, SCL→D22, address 0x3C |
+| MicroSD adapter | CS→D5, SCK→D18, MISO→D19, MOSI→D23, VCC→VIN (5 V) |
+| Buttons | Main→D32 (the board's BOOT button does the same), optional Stop→D27, each to GND with the internal pull-up |
+| Status LEDs | red/green/third → GPIO16/17/4 through 100–220 Ω; short legs to GND |
 
 **Why these parts:**
-- The ESP32-S3 has two cores, hardware I²S, Wi-Fi and 8 MB of PSRAM. The PSRAM gives a large in-memory audio buffer.
+- The ESP32 has two cores, hardware I²S and Wi-Fi. It has no PSRAM, so only 5 s of audio stays in RAM (as ADPCM) and everything older moves to the SD card.
+- The design started on an ESP32-S3 with 8 MB of PSRAM; the firmware still builds for it (pins in `firmware/board/board.h`).
 - The INMP441 produces a digital signal, so there are no analog noise problems on the board.
 - The OLED and LED show the lecturer the recording state at a glance without opening the website.
 
-**Offline storage (a deliberate deviation):**
-- The original plan listed a MicroSD card. This build uses the board's internal flash plus PSRAM instead, about 12.7 minutes of audio.
-- Reasons: one less part that can be removed or corrupted, and no extra SPI wiring.
-- This is enough for the Wi-Fi outages a classroom normally sees.
+**Offline storage:**
+- Offline audio goes to a preallocated 20-minute log file on the MicroSD card, in the same crash-safe record format as the flash log (CRC per record, ACK marks written in place).
+- Without a card the device falls back to internal flash, about 4.4 minutes.
+- An earlier plan used PSRAM plus internal flash and no card (about 12.7 minutes on the ESP32-S3). The board actually used has no PSRAM and only 4 MB of flash, so the MicroSD card became necessary.
+- Over jumper wires the card needed pull-ups on its SPI lines and a 10 MHz clock; at that setting it writes 470 KB/s, about 50 times what the recorder needs.
 
 ---
 
@@ -210,7 +213,7 @@ The circuit and wiring are in [CIRCUIT.md](CIRCUIT.md). Summary:
 
 | Task | Core | Job |
 |---|---|---|
-| `audio` | 1 | I²S DMA capture, 24→16-bit conversion, high-pass filter, gain, 500 ms chunks into the PSRAM ring, level meter, silence warning |
+| `audio` | 1 | I²S DMA capture, 24→16-bit conversion, high-pass filter, gain, 500 ms chunks (ADPCM) into the RAM ring, level meter, silence warning |
 | `net` | 0 | Wi-Fi with back-off, TLS WebSocket, `hello`/`config`, live-first sending with selective ACKs, web commands, status reports |
 | `spill` | 0 | Moves un-acknowledged chunks to the flash log as IMA-ADPCM when offline |
 | `ui` | 0 | LED and OLED |
@@ -226,12 +229,12 @@ Each audio frame has a 26-byte header: magic `LC`, version, codec (PCM16 or IMA-
 
 ### 6.4 No audio loss: how it works
 
-1. Every chunk stays in the PSRAM ring until the server acknowledges it.
-2. While the server is unreachable, any chunk older than 2 s is compressed with IMA-ADPCM (4:1) and written to a flash log. A power cut therefore loses at most about 2 s.
+1. Every chunk stays in the RAM ring or the SD log until the server acknowledges it.
+2. While the server is unreachable, any chunk older than 2 s is written to the log on the SD card (already IMA-ADPCM, 4:1). A power cut therefore loses at most about 2 s.
 3. On reconnect, the device sends **live audio first** and the backlog in spare bandwidth. This keeps the live transcript current.
 4. The server acknowledges with a cumulative sequence number plus "ranges" of stored chunks above it (selective ACKs). The device frees exactly what was stored.
 5. The server ignores a chunk it already has, so resending is safe (idempotent storage).
-6. Flash records carry a CRC and the session id, so a recording interrupted by a reboot is recovered and uploaded.
+6. Log records carry a CRC and the session id, so a recording interrupted by a reboot is recovered and uploaded.
 
 ---
 
@@ -379,7 +382,7 @@ How to read the results:
 - In every run, each chunk was stored exactly once and the report passed.
 - The longest capture-to-arrival delay in each run equals the outage's wall-clock length plus the time to fill the gap, so the backlog went out almost immediately after reconnecting.
 - Live chunks outside the gaps arrived 0.15–0.5 s after capture (p50).
-- The 10-minute outage fits the device's offline buffer (about 12.7 minutes, PSRAM and flash).
+- The 10-minute outage fits the device's offline buffer (about 20 minutes on the SD card).
 
 Still *to be measured* on the board, with the Wi-Fi uplink pulled:
 - the flash spill and I²S timing;
@@ -403,14 +406,14 @@ Details are in [infra/README.md](../../infra/README.md).
 
 **Limitations:**
 - The firmware and the real speech and AI models were not run inside the automated test suite. They must be validated on hardware and real recordings (Chapter 9).
-- The offline buffer holds about 12.7 minutes; a longer outage loses audio, and the device warns on screen.
+- The offline buffer holds about 20 minutes (RAM limits the index, not the card); a longer outage loses audio, and the device warns on screen.
 - One gateway process holds the device connections, so it does not scale horizontally as written.
 - Practice-question answers are sent to the browser, which is fine for revision but not for graded tests.
 
 **Future work:**
 - speaker diarisation (lecturer vs. student questions);
 - on-device voice activity detection to save bandwidth;
-- a MicroSD option for very long outages;
+- a longer SD log for very long outages, by indexing the card in pages instead of keeping the whole index in RAM;
 - fine-tuning ASR on local classroom audio;
 - a mobile app with offline notes;
 - an LMS integration (e.g. Moodle).
@@ -433,7 +436,7 @@ The system is built to be measured: the evaluation scripts report accuracy, late
 > Complete these in your department's citation style.
 
 1. A. Radford et al., "Robust Speech Recognition via Large-Scale Weak Supervision" (Whisper), 2022.
-2. Espressif Systems, *ESP32-S3 Technical Reference Manual* and *ESP-IDF Programming Guide*.
+2. Espressif Systems, *ESP32 Technical Reference Manual* and *ESP-IDF Programming Guide*.
 3. InvenSense (TDK), *INMP441 Omnidirectional Microphone with I²S Digital Output*, datasheet.
 4. Solomon Systech, *SSD1306 OLED driver*, datasheet.
 5. Amazon Web Services, *Amazon Bedrock User Guide* (Converse API, embeddings).

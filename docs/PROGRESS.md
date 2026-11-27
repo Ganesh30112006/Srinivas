@@ -17,7 +17,7 @@ The build follows the module order of the system brief, with the decisions in `D
 
 ## Master-plan additions (2026-11-19/20)
 
-Agreed with the owner on 2026-11-19. Deliberate deviation: no MicroSD; internal flash + PSRAM give about 12.7 min of offline audio.
+Agreed with the owner on 2026-11-19. The 2026-11-19 "no MicroSD" choice was reversed on 2026-11-25: the real board is an ESP32 DevKit V1 with no PSRAM, so offline audio now goes to a MicroSD card (20 min), with internal flash as the fallback.
 
 | Addition | Where | Verified here |
 |---|---|---|
@@ -243,9 +243,25 @@ Repeat with `python firmware/tools/compile_check.py --host-tests "python -m zigl
   existed, so `asr_benchmark.py` could not import them. A fresh install fixes it; the packaging was
   already correct.
 
+## Real board: ESP32 DevKit V1 (2026-11-25)
+
+The board in hand is a classic ESP32 (ESP32-D0WD-V3, 4 MB BoyaMicro flash, no PSRAM), not the
+ESP32-S3 N8R8 the firmware was written for. See D15 in `DECISIONS.md`.
+
+- ESP-IDF v5.5.1 installed in `C:\esp\esp-idf`; all firmware now builds with `idf.py` and its own
+  `sdkconfig.defaults` (per-target files `sdkconfig.defaults.esp32` / `.esp32s3`).
+- New `firmware/bringup` hardware check, run on the board: display, LED, SD card (32 GB, 470 KB/s
+  write, 410 KB/s read), Wi-Fi scan and the main button passed. The SD card failed with CRC errors
+  (0x109) until pull-ups and a 10 MHz clock cap were added.
+- Recorder: ADPCM RAM ring, SD-card offline log with flash fallback, one-button control, LED
+  polarity option, built-in test clip as an audio source (`main/test_clip.adpcm`, 33 s) so the
+  whole system can run before the microphone arrives.
+- `lc_core` index uses a session tag; host tests 80 checks, 0 failures.
+- Not yet run on the board: the recorder itself, and anything with the microphone.
+
 ## Not verified here (needs real hardware or services)
 
-- On-device firmware behaviour, and a build with `idf.py` using the project's own `sdkconfig.defaults` (the check above used Arduino's prebuilt ESP-IDF libraries).
+- On-device recorder behaviour (bring-up only so far), the microphone path, and the ESP32-S3 build on real hardware.
 - ASR accuracy on real classroom audio, Telugu and Hindi: measured only on synthetic English speech so far (`small` 1.8% WER). Measure real recordings with `eval/asr_benchmark.py`, then fill in `REPORT.md` §9.2.
 - Claude and Cohere on Bedrock: blocked by the account's payment method (AWS Marketplace). Also untested: the EC2 instance role's IAM policy.
 - `infra/ec2/setup.sh` on a real Ubuntu 24.04 instance, and Caddy obtaining a certificate.

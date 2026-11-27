@@ -26,7 +26,7 @@ echo "==> Sync code"
 if [[ "${REPO_DIR}" != "${APP_DIR}" ]]; then
   rsync -a --delete \
     --exclude '.git' --exclude 'node_modules' --exclude '.venv' --exclude '__pycache__' \
-    --exclude 'frontend/dist' --exclude 'backend/data' --exclude 'backend/.env' \
+    --exclude 'frontend/dist' --exclude 'backend/data' --exclude 'backend/.env' --exclude 'backend/secrets' \
     "${REPO_DIR}/" "${APP_DIR}/"
 fi
 chown -R root:"${APP_USER}" "${APP_DIR}"
@@ -58,7 +58,10 @@ systemctl enable --now smartclass-retention.timer
 echo "==> Restart services"
 # Workers first (they resume from Redis/PostgreSQL), then the gateway (devices reconnect and
 # resend un-ACKed chunks), then the API (browsers reconnect and replay from their last seq).
-for unit in smartclass-notes smartclass-asr smartclass-gateway smartclass-api; do
+units=(smartclass-notes smartclass-asr smartclass-gateway smartclass-api)
+# The AWS IoT bridge, on servers that have its certificate (infra/aws/bootstrap.sh).
+systemctl is-enabled --quiet smartclass-iot 2>/dev/null && units=(smartclass-notes smartclass-asr smartclass-iot smartclass-gateway smartclass-api)
+for unit in "${units[@]}"; do
   systemctl restart "${unit}"
   sleep 2
   systemctl is-active --quiet "${unit}" || { journalctl -u "${unit}" -n 50 --no-pager; exit 1; }

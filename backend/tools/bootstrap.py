@@ -5,6 +5,8 @@
       --device id=<uuid>,serial=<MAC>,token_hash=<sha256 hex>,name="Desk mic",room="Room 204"
 
 The password is read from the ADMIN_PASSWORD environment variable, never from the command line.
+More accounts can be given in BOOTSTRAP_USERS, a JSON list of {"email","name","role","password"}
+(role lecturer, student or admin); lecturers and admins among them are also assigned the devices.
 A device keeps the id and token it was provisioned with: pass the SHA-256 of its token (only the
 hash is stored), so a recorder moved to a new server needs no re-flashing. The admin is assigned
 to every device given here. Safe to re-run: existing rows are left as they are.
@@ -14,12 +16,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import re
 import sys
 import uuid
 
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.security import hash_password
 from app.db.models import Device, DeviceLecturer, Role, Subject, User
@@ -37,19 +41,37 @@ def parse_device(text: str) -> dict[str, str]:
     return fields
 
 
-async def run(args: argparse.Namespace, password: str) -> None:
+async def _user(db: AsyncSession, email: str, name: str, role: Role, password: str) -> User:
+    email = email.strip().lower()
+    user = (await db.execute(select(User).where(func.lower(User.email) == email))).scalars().first()
+    if user is None:
+        user = User(email=email, name=name, role=role, password_hash=hash_password(password))
+        db.add(user)
+        await db.flush()
+        print(f"created {role.value} {email}")
+    else:
+        print(f"exists: {email}")
+    return user
+
+
+def parse_users(raw: str) -> list[dict[str, str]]:
+    users = json.loads(raw) if raw.strip() else []
+    for u in users:
+        if not {"email", "role", "password"} <= u.keys() or u["role"] not in {r.value for r in Role}:
+            raise SystemExit("BOOTSTRAP_USERS entries need email, role (lecturer|student|admin), password")
+        if len(u["password"]) < 8:
+            raise SystemExit(f"password for {u['email']} is shorter than 8 characters")
+    return users
+
+
+async def run(args: argparse.Namespace, password: str, extra: list[dict[str, str]] | None = None) -> None:
     async with get_sessionmaker()() as db:
-        email = args.admin_email.strip().lower()
-        admin = (await db.execute(select(User).where(func.lower(User.email) == email))).scalars().first()
-        if admin is None:
-            admin = User(
-                email=email, name=args.admin_name, role=Role.admin, password_hash=hash_password(password)
-            )
-            db.add(admin)
-            await db.flush()
-            print(f"created admin {email}")
-        else:
-            print(f"exists: {email}")
+        admin = await _user(db, args.admin_email, args.admin_name, Role.admin, password)
+        staff = [admin]
+        for u in extra or []:
+            user = await _user(db, u["email"], u.get("name") or u["email"], Role(u["role"]), u["password"])
+            if user.role != Role.student:
+                staff.append(user)
         for spec in args.subject:
             code, _, name = spec.partition("=")
             if not (await db.execute(select(Subject).where(Subject.code == code))).scalars().first():
@@ -69,10 +91,19 @@ async def run(args: argparse.Namespace, password: str) -> None:
                     )
                 )
                 await db.flush()
-                db.add(DeviceLecturer(device_id=device_id, user_id=admin.id))
                 print(f"created device {device_id}")
             else:
                 print(f"exists: device {device_id}")
+            linked = set(
+                (
+                    await db.execute(
+                        select(DeviceLecturer.user_id).where(DeviceLecturer.device_id == device_id)
+                    )
+                ).scalars()
+            )
+            for user in staff:
+                if user.id not in linked:
+                    db.add(DeviceLecturer(device_id=device_id, user_id=user.id))
         await db.commit()
     await get_engine().dispose()
 
@@ -90,7 +121,7 @@ def main() -> int:
     if len(password) < 8:
         print("error: set ADMIN_PASSWORD (at least 8 characters)", file=sys.stderr)
         return 1
-    asyncio.run(run(args, password))
+    asyncio.run(run(args, password, parse_users(os.environ.get("BOOTSTRAP_USERS", ""))))
     return 0
 
 

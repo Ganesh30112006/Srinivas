@@ -178,7 +178,7 @@ sequenceDiagram
 
   Dev->>GW: audio seq 100..119 (acked)
   Note over Dev,GW: Wi-Fi drops
-  Dev->>Dev: keep recording into PSRAM ring
+  Dev->>Dev: keep recording into RAM ring, spill to SD card
   Dev->>Dev: chunks older than 2 s → ADPCM → flash log
   Note over Dev: OLED "REC (offline)", LED red↔yellow
   Note over Dev,GW: Wi-Fi returns
@@ -256,7 +256,7 @@ flowchart TD
 ```mermaid
 flowchart TB
   subgraph Classroom
-    DEV[ESP32-S3 recorder]
+    DEV[ESP32 recorder]
   end
   subgraph Clients
     BR[Browsers: students, lecturers, admin]

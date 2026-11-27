@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Smart Classroom lecture capture: one Ubuntu 24.04 server (API, web app, speech-to-text, notes,
+  AWS IoT Core bridge) with a fixed public IP, HTTPS via <ip>.sslip.io, no SSH (Session Manager
+  only), and a role GitHub Actions assumes to deploy. See infra/aws/README.md.
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: c7i.2xlarge
+  RootVolumeGb:
+    Type: Number
+    Default: 60
+  ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+  GitHubRepo:
+    Type: String
+    Default: Ganesh30112006/Srinivas
+    Description: owner/name of the (public) repository the server clones
+  GitRef:
+    Type: String
+    Default: main
+    Description: branch the server is first installed from
+  GitHubOidcProviderArn:
+    Type: String
+    Description: ARN of the existing token.actions.githubusercontent.com OIDC provider
+
+Resources:
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Smart Classroom web (HTTP for the certificate challenge, HTTPS)
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIpv6: "::/0" }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIpv6: "::/0" }
+      Tags: [{ Key: Name, Value: smartclass-web }]
+
+  ServerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: smartclass-server
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: Bedrock
+                Effect: Allow
+                Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+                Resource: "*"
+              - Sid: Config
+                Effect: Allow
+                Action: [ssm:GetParameter, ssm:GetParameters]
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/smartclass/*
+              - Sid: DecryptConfig
+                Effect: Allow
+                Action: kms:Decrypt
+                Resource: "*"
+                Condition:
+                  StringEquals: { kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com" }
+
+  ServerProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref ServerRole]
+
+  ElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags: [{ Key: Name, Value: smartclass }]
+
+  Server:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref ServerProfile
+      SecurityGroupIds: [!GetAtt WebSecurityGroup.GroupId]
+      MetadataOptions: { HttpTokens: required }
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs: { VolumeSize: !Ref RootVolumeGb, VolumeType: gp3, Encrypted: true, DeleteOnTermination: true }
+      Tags: [{ Key: Name, Value: smartclass }]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euxo pipefail
+          exec > /var/log/smartclass-bootstrap.log 2>&1
+          apt-get update -y
+          apt-get install -y git
+          git clone --branch "${GitRef}" "https://github.com/${GitHubRepo}.git" /opt/smartclass-src
+          SITE_ADDRESS="${ElasticIp.PublicIp}.sslip.io" AWS_REGION="${AWS::Region}" \
+            bash /opt/smartclass-src/infra/aws/bootstrap.sh
+
+  ServerIp:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt ElasticIp.AllocationId
+      InstanceId: !Ref Server
+
+  GitHubDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: GitHub Actions (main branch) deploys to the Smart Classroom server via SSM
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Federated: !Ref GitHubOidcProviderArn }
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepo}:ref:refs/heads/main
+      Policies:
+        - PolicyName: deploy-via-ssm
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${Server}
+                  - !Sub arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript
+              - Effect: Allow
+                Action: [ssm:GetCommandInvocation, ssm:ListCommandInvocations, ec2:DescribeInstances]
+                Resource: "*"
+
+Outputs:
+  InstanceId:
+    Value: !Ref Server
+  PublicIp:
+    Value: !Ref ElasticIp
+  SiteUrl:
+    Value: !Sub https://${ElasticIp.PublicIp}.sslip.io
+  DeployRoleArn:
+    Value: !GetAtt GitHubDeployRole.Arn

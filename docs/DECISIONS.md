@@ -18,6 +18,7 @@ On 2026-11-19 the owner instructed: "don't ask me, complete full architecture" a
 | D12 | **No Docker.** EC2 runs Ubuntu 24.04 with PostgreSQL 16 + pgvector, Redis and Caddy as system packages; the API, gateway, ASR worker and notes worker run as systemd units. Local development uses native installs (Redis via Memurai or WSL on Windows). | `infra/` holds a setup script and systemd units instead of Compose. |
 | D13 | **Server-side sessions** (`sessions` table, token hash, CSRF token) back the httpOnly cookie, so sessions can be revoked. | Schema adds `sessions` (justified addition). |
 | D14 | Monorepo layout as in the brief: `firmware/ backend/ frontend/ contracts/ infra/ eval/ docs/`. | None. |
+| D15 | **Real board: ESP32 DevKit V1 (no PSRAM, 4 MB flash), 2026-11-25.** Pins move to `firmware/board/board.h` (the S3 build is kept). The RAM ring holds 10 ADPCM chunks (5 s); the offline log is a preallocated file on a MicroSD card (2400 chunks, 20 min), with the `audiobuf` flash partition as the fallback. The log index keeps a 32-bit CRC tag of the session id instead of the 16-byte id (16 bytes per entry). One main button: short press start/pause/resume, hold 1.5 s stop. | None: live chunks use codec 1 (ADPCM), which the gateway already accepts. `psram_buffer_pct` reports the RAM ring and `flash_buffer_pct` the SD (or flash) log. |
 
 Adopted from the system brief over the earlier frontend-only brief:
 - `device.status` reports `psram_buffer_pct` and `flash_buffer_pct`.

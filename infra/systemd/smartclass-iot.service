@@ -1,0 +1,34 @@
+[Unit]
+Description=Smart Classroom AWS IoT Core bridge (recorders over MQTT)
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+Requires=postgresql.service redis-server.service
+# Only on servers that have the bridge's certificate (infra/aws/bootstrap.sh installs it).
+ConditionPathExists=/etc/smartclass/iot/private.key
+
+[Service]
+Type=exec
+User=smartclass
+Group=smartclass
+WorkingDirectory=/opt/smartclass/backend
+EnvironmentFile=/etc/smartclass/backend.env
+# One process: AWS IoT Core allows one connection per client id, and a device's link state
+# (current session, ACK ranges) lives in memory.
+ExecStart=/opt/smartclass/backend/.venv/bin/python -m app.iot.main
+Restart=always
+RestartSec=3
+TimeoutStopSec=20
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/smartclass
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
