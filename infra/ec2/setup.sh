@@ -91,8 +91,8 @@ chmod -R g+rX,o-rwx "${APP_DIR}"
 echo "==> PostgreSQL role and database"
 systemctl enable --now postgresql
 if [[ ! -f "${ETC_DIR}/db-password" ]]; then
-  umask 077
-  openssl rand -hex 24 > "${ETC_DIR}/db-password"
+  # In a subshell: a script-wide umask 077 made the venv unreadable for the app user.
+  ( umask 077; openssl rand -hex 24 > "${ETC_DIR}/db-password" )
   chown root:root "${ETC_DIR}/db-password"
 fi
 DB_PASSWORD="$(cat "${ETC_DIR}/db-password")"
@@ -134,7 +134,8 @@ echo "==> Python virtual environment and migrations"
 python3 -m venv "${APP_DIR}/backend/.venv"
 "${APP_DIR}/backend/.venv/bin/pip" install --quiet --upgrade pip
 "${APP_DIR}/backend/.venv/bin/pip" install --quiet -e "${APP_DIR}/backend[asr,pdf]"
-chown -R root:"${APP_USER}" "${APP_DIR}/backend/.venv"
+chown -R root:"${APP_USER}" "${APP_DIR}/backend"
+chmod -R g+rX,o-rwx "${APP_DIR}/backend"
 (
   cd "${APP_DIR}/backend"
   set -a; . "${ETC_DIR}/backend.env"; set +a

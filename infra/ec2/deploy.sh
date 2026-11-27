@@ -34,6 +34,8 @@ chmod -R g+rX,o-rwx "${APP_DIR}"
 
 echo "==> Python dependencies and migrations"
 "${APP_DIR}/backend/.venv/bin/pip" install --quiet -e "${APP_DIR}/backend[asr,pdf]"
+chown -R root:"${APP_USER}" "${APP_DIR}/backend"
+chmod -R g+rX,o-rwx "${APP_DIR}/backend"
 (
   cd "${APP_DIR}/backend"
   set -a; . "${ETC_DIR}/backend.env"; set +a
